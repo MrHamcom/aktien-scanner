@@ -166,6 +166,15 @@ def build_start_list(
     for h in sorted(holdings, key=lambda x: x.weight, reverse=True):
         if h.asset_class.casefold() != "equity":
             continue
+        if exchanges.is_unlisted(h.exchange):
+            entries.append(
+                StartListEntry(
+                    source_ticker=h.ticker, yahoo_ticker=None, name=h.name, sector=h.sector,
+                    country=h.country, region=config.region_of(h.country), exchange=h.exchange,
+                    currency=h.currency, weight=h.weight, status="excluded", reason="unlisted",
+                )
+            )
+            continue
         yahoo, reason = to_yahoo_ticker(h, exchanges)
         region = config.region_of(h.country)
         status = "included"

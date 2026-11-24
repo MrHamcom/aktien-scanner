@@ -171,6 +171,11 @@ class ExchangeRule(_Strict):
 class ExchangesConfig(_Strict):
     exchanges: dict[str, ExchangeRule]
     ticker_overrides: dict[str, str] = Field(default_factory=dict)
+    unlisted: list[str] = Field(default_factory=list)
+
+    def is_unlisted(self, exchange: str) -> bool:
+        wanted = exchange.strip().casefold()
+        return any(name.strip().casefold() == wanted for name in self.unlisted)
 
     def rule_for(self, exchange: str) -> ExchangeRule | None:
         """Case-insensitive lookup of an exchange name."""

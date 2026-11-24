@@ -7,6 +7,12 @@
 # separator:         replacement for "/" and "." inside the ticker (US: BRK.B -> BRK-B)
 # by_country:        suffix depending on the "Location" column (for shared exchange names)
 
+# Holdings without a stock exchange listing (e.g. suspended or delisted securities).
+# They are excluded from the universe with reason "unlisted", not reported as unmapped.
+unlisted:
+  - "NO MARKET (E.G. UNLISTED)"
+  - "-"
+
 exchanges:
   # North America
   "New York Stock Exchange Inc.": {suffix: "", separator: "-"}
@@ -16,6 +22,7 @@ exchanges:
   "NYSE Arca": {suffix: "", separator: "-"}
   "Nyse Mkt Llc": {suffix: "", separator: "-"}
   "Cboe BZX formerly known as BATS": {suffix: "", separator: "-"}
+  "Cboe BZX": {suffix: "", separator: "-"}
   "Toronto Stock Exchange": {suffix: ".TO", separator: "-"}
 
   # Europe

@@ -110,3 +110,15 @@ def test_full_scope_keeps_everything(config, sample_csv) -> None:
 def test_unknown_scope(config) -> None:
     with pytest.raises(ValueError):
         select_scope([], "nonsense", config)
+
+
+def test_unlisted_holdings_are_excluded_not_unmapped(config) -> None:
+    exchanges = load_exchanges(config)
+    holding = _holding("RUSX", "NO MARKET (E.G. UNLISTED)")
+    entries = build_start_list([holding], config, exchanges)
+    assert entries[0].status == "excluded" and entries[0].reason == "unlisted"
+
+
+def test_cboe_bzx_is_us(config) -> None:
+    yahoo, _ = to_yahoo_ticker(_holding("CBOE", "Cboe BZX"), load_exchanges(config))
+    assert yahoo == "CBOE"
