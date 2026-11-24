@@ -40,6 +40,7 @@ step "5/5 Desktop-Verknüpfung anlegen"
 chmod +x start.sh update.sh
 DISTRO="${WSL_DISTRO_NAME:-Ubuntu-24.04}"
 PS_SCRIPT=$(cat <<EOF
+\$ProgressPreference = 'SilentlyContinue'
 \$desktop = [Environment]::GetFolderPath('Desktop')
 \$link = Join-Path \$desktop 'Aktien-Scanner.lnk'
 \$shell = New-Object -ComObject WScript.Shell
@@ -54,7 +55,7 @@ EOF
 )
 ENCODED=$(printf '%s' "$PS_SCRIPT" | iconv -f utf-8 -t utf-16le | base64 -w0)
 if command -v powershell.exe >/dev/null 2>&1; then
-  LINK=$(cd /mnt/c && powershell.exe -NoProfile -NonInteractive -EncodedCommand "$ENCODED" | tr -d '\r')
+  LINK=$(cd /mnt/c && powershell.exe -NoProfile -NonInteractive -EncodedCommand "$ENCODED" 2>/dev/null | tr -d '\r' | tail -n 1)
   ok "Verknüpfung angelegt: $LINK"
 else
   echo "    powershell.exe nicht gefunden – Verknüpfung übersprungen. Start alternativ mit: ./start.sh"
