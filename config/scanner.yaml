@@ -1,0 +1,87 @@
+# Aktien-Scanner – configuration
+# All thresholds and weights live here, never in code.
+# Changing anything in this file during the forward test (Subphase E) restarts the count:
+# bump `config_version` and create a new git tag.
+
+config_version: 1
+
+start_list:
+  # Decision 1b: holdings list of a world ETF on the MSCI ACWI (~2,200 large/mid caps)
+  source: ishares_holdings_csv
+  etf: ACWI
+  url: "https://www.ishares.com/us/products/239600/ishares-msci-acwi-etf/1467271812596.ajax?fileType=csv&fileName=ACWI_holdings&dataType=fund"
+  # URL format is verified in Subphase B
+
+universe_rule:
+  # Decision 7
+  min_market_cap_eur: 2000000000
+  min_avg_daily_value_eur: 10000000
+  avg_daily_value_window_days: 20
+  common_shares_only: true
+  one_share_class_per_company: true
+  # Decision 2: financials and REITs excluded in v1 (extension F1)
+  excluded_sectors:
+    - Financials
+    - Real Estate
+
+value_trap_filters:
+  # exclude if free cash flow was negative in at least this many of the last 3 years
+  negative_fcf_years_of_last_3: 2
+  min_altman_z: 1.8
+  max_share_dilution_12m: 0.10
+
+ranking:
+  peer_group: [sector, region]
+  min_peer_group_size: 10
+  fallback_peer_group: [sector]
+
+profiles:
+  # Decision 3
+  overall:
+    label: Gesamt
+    weights: {value: 30, quality: 25, momentum: 25, dividend: 20}
+    # Decision 4: non-payers get their dividend weight redistributed to the other factors
+    non_payer_dividend: redistribute
+  dividend:
+    label: Dividende
+    weights: {value: 20, quality: 30, momentum: 10, dividend: 40}
+    non_payer_dividend: exclude
+    min_years_without_cut: 5
+    exclude_dividend_traps: true
+
+dividend:
+  trap_yield_above: 0.10
+  max_fcf_payout_last_year: 1.0
+  max_fcf_payout_avg_3y: 0.8
+  streak_cap_years: 25
+  growth_years: 5
+
+regions:
+  # Peer groups for ranking (sector x region). Country names as used in iShares holdings files.
+  North America: [United States, Canada]
+  Europe: [United Kingdom, France, Germany, Switzerland, Netherlands, Sweden, Denmark, Italy,
+           Spain, Finland, Belgium, Norway, Ireland, Austria, Portugal, Israel]
+  Japan: [Japan]
+  Asia Pacific ex Japan: [Australia, Hong Kong, Singapore, New Zealand]
+  Emerging Markets: [China, India, Taiwan, "Korea (South)", Brazil, Saudi Arabia, South Africa,
+                     Mexico, Indonesia, Thailand, Malaysia, United Arab Emirates, Qatar, Kuwait,
+                     Poland, Chile, Philippines, Greece, Peru, Hungary, Turkey, Czech Republic,
+                     Egypt, Colombia]
+
+data_source:
+  # Decision 5
+  provider: yfinance
+  max_requests_per_minute: 60      # tuned during ramp-up in Subphase B
+  fundamentals_refresh_days: 90
+
+schedule:
+  # Decision 6
+  mode: manual
+
+report:
+  top_n: 20
+
+ui:
+  title: Aktien-Scanner
+  host: 127.0.0.1
+  port: 8765

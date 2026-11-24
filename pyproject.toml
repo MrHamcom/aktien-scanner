@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aktien-scanner"
+version = "0.1.0"
+description = "Stock scanner that ranks equities by value, quality, momentum and dividend. Does not trade."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "nicegui>=4.0,<5",
+    "yfinance>=1.8,<2",
+    "pandas>=3.1,<4",
+    "pyyaml>=6.0,<7",
+    "pydantic>=2.14,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.2,<10",
+    "ruff>=0.17",
+]
+
+[project.scripts]
+aktien-scanner = "scanner.ui.app:main"
+scanner = "scanner.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
