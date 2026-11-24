@@ -26,7 +26,16 @@ def test_parse_skips_metadata_and_footer(sample_csv: str) -> None:
 
 def test_parse_rejects_unexpected_format() -> None:
     with pytest.raises(StartListError, match="Kopfzeile"):
-        parse_ishares_csv("<html>Access denied</html>")
+        parse_ishares_csv("Access denied")
+
+
+def test_parse_recognises_html_page() -> None:
+    with pytest.raises(StartListError, match="Webseite"):
+        parse_ishares_csv("<!DOCTYPE html>\n<html lang='en-US'><head></head></html>")
+
+
+def test_download_url_points_to_csv(config) -> None:
+    assert config.start_list.url.endswith(".csv")
 
 
 @pytest.mark.parametrize(

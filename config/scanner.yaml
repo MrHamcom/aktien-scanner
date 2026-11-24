@@ -9,7 +9,7 @@ start_list:
   # Decision 1b: holdings list of a world ETF on the MSCI ACWI (~2,200 large/mid caps)
   source: ishares_holdings_csv
   etf: ACWI
-  url: "https://www.ishares.com/us/products/239600/ishares-msci-acwi-etf/1467271812596.ajax?fileType=csv&fileName=ACWI_holdings&dataType=fund"
+  url: "https://www.ishares.com/us/products/239600/ishares-msci-acwi-etf/latest-holdings.csv"
   # Fallback if the download fails: save the CSV from the iShares website to this path
   # (relative to the project folder). Used instead of the download whenever the file exists.
   local_file: data/start_list.csv

@@ -64,7 +64,8 @@ def render(config: ScannerConfig, jobs: JobManager) -> None:
                      f"{STATUS_LABELS.get(run.status, run.status)} · {scope}")
                 queried = sum(1 for e in store.get_start_list(run.id) if e.status == "included")
                 _kpi("task_alt", "Vollständig geladen", fmt.number(run.rated_count),
-                     f"von {fmt.number(queried)} abgefragten Aktien")
+                     f"von {fmt.number(queried)} abgefragten Aktien" if queried
+                     else "Startliste nicht geladen")
             _kpi("public", "Startliste", config.start_list.etf, "Welt-ETF (MSCI ACWI)")
             _kpi("cloud_download", "Datenquelle", config.data_source.provider,
                  f"max. {config.data_source.max_requests_per_minute} Abrufe pro Minute")

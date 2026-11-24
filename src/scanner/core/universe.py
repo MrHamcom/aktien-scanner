@@ -60,7 +60,19 @@ def fetch_holdings_text(config: ScannerConfig, timeout: float = 60) -> tuple[str
             f"Startliste konnte nicht geladen werden ({exc}). Ausweg: CSV von der iShares-Seite "
             f"herunterladen und als {local} speichern."
         ) from exc
-    return raw.decode("utf-8-sig", errors="replace"), "Download iShares"
+    text = raw.decode("utf-8-sig", errors="replace")
+    if _looks_like_html(text):
+        raise StartListError(
+            "Startliste: iShares lieferte eine Webseite statt einer CSV-Datei – die Download-"
+            f"Adresse ist vermutlich veraltet. Ausweg: CSV von der iShares-Seite herunterladen "
+            f"und als {local} speichern."
+        )
+    return text, "Download iShares"
+
+
+def _looks_like_html(text: str) -> bool:
+    head = text.lstrip()[:200].lower()
+    return head.startswith("<!doctype html") or head.startswith("<html")
 
 
 def _number(text: str) -> float:
@@ -77,7 +89,12 @@ def parse_ishares_csv(text: str) -> list[Holding]:
         (i for i, line in enumerate(lines) if line.lstrip('"').startswith("Ticker")), None
     )
     if header_index is None:
-        raise StartListError("Startliste: Kopfzeile mit 'Ticker' nicht gefunden")
+        if _looks_like_html(text):
+            raise StartListError("Startliste: Webseite statt CSV-Datei erhalten")
+        first = next((line for line in lines if line.strip()), "")[:60]
+        raise StartListError(
+            f"Startliste: Kopfzeile mit 'Ticker' nicht gefunden (Beginn: {first!r})"
+        )
 
     reader = csv.reader(io.StringIO("\n".join(lines[header_index:])))
     header = [h.strip() for h in next(reader)]
