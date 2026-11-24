@@ -11,7 +11,7 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from scanner.paths import config_path
+from scanner.paths import config_path, resolve_project_path
 
 FACTORS: tuple[str, ...] = ("value", "quality", "momentum", "dividend")
 
@@ -24,6 +24,20 @@ class StartList(_Strict):
     source: Literal["ishares_holdings_csv"]
     etf: str
     url: str
+    local_file: str
+    exchanges_file: str
+
+
+class RampUpSample(_Strict):
+    label: str
+    per_country: dict[str, int] | None = None
+    per_region: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def _one_rule(self) -> RampUpSample:
+        if (self.per_country is None) == (self.per_region is None):
+            raise ValueError("ramp-up sample needs exactly one of per_country / per_region")
+        return self
 
 
 class UniverseRule(_Strict):
@@ -75,10 +89,21 @@ class Dividend(_Strict):
     growth_years: int = Field(ge=1)
 
 
+class Refresh(_Strict):
+    history_hours: float = Field(gt=0)
+    info_days: float = Field(gt=0)
+    statements_days: float = Field(gt=0)
+    fx_hours: float = Field(gt=0)
+
+
 class DataSource(_Strict):
     provider: Literal["yfinance"]
     max_requests_per_minute: int = Field(ge=1)
-    fundamentals_refresh_days: int = Field(ge=1)
+    max_retries: int = Field(ge=0)
+    retry_base_seconds: float = Field(ge=0)
+    abort_after_consecutive_rate_limits: int = Field(ge=1)
+    history_price_days: int = Field(ge=260)
+    refresh: Refresh
 
 
 class Schedule(_Strict):
@@ -98,6 +123,7 @@ class UiSettings(_Strict):
 class ScannerConfig(_Strict):
     config_version: int = Field(ge=1)
     start_list: StartList
+    ramp_up: dict[str, RampUpSample]
     universe_rule: UniverseRule
     value_trap_filters: ValueTrapFilters
     ranking: Ranking
@@ -129,8 +155,46 @@ class ScannerConfig(_Strict):
         return None
 
 
+class ExchangeRule(_Strict):
+    suffix: str | None = None
+    by_country: dict[str, str] | None = None
+    zero_pad: int | None = Field(default=None, ge=1)
+    separator: str | None = None
+
+    @model_validator(mode="after")
+    def _suffix_or_country(self) -> ExchangeRule:
+        if (self.suffix is None) == (self.by_country is None):
+            raise ValueError("exchange rule needs exactly one of suffix / by_country")
+        return self
+
+
+class ExchangesConfig(_Strict):
+    exchanges: dict[str, ExchangeRule]
+    ticker_overrides: dict[str, str] = Field(default_factory=dict)
+
+    def rule_for(self, exchange: str) -> ExchangeRule | None:
+        """Case-insensitive lookup of an exchange name."""
+        wanted = exchange.strip().casefold()
+        for name, rule in self.exchanges.items():
+            if name.strip().casefold() == wanted:
+                return rule
+        return None
+
+
 class ConfigError(RuntimeError):
     """Raised when the configuration file is missing or invalid."""
+
+
+def load_exchanges(config: ScannerConfig) -> ExchangesConfig:
+    """Read the exchange mapping referenced by the main configuration."""
+    path = resolve_project_path(config.start_list.exchanges_file)
+    if not path.is_file():
+        raise ConfigError(f"Börsen-Zuordnung fehlt: {path}")
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+        return ExchangesConfig.model_validate(raw)
+    except (yaml.YAMLError, ValueError) as exc:
+        raise ConfigError(f"Börsen-Zuordnung ungültig ({path}):\n{exc}") from exc
 
 
 def load_config(path: Path | None = None) -> ScannerConfig:

@@ -37,6 +37,12 @@ Das Skript
 - **Starten:** Doppelklick auf „Aktien-Scanner“ auf dem Desktop. Der Browser öffnet sich mit der Oberfläche (`http://localhost:8765`).
 - **Beenden:** Das minimierte Fenster „Aktien-Scanner“ in der Taskleiste schließen.
 - **Aktualisieren** (wenn Claude eine neue Version bereitgestellt hat): im Ubuntu-Fenster `~/aktien-scanner/update.sh`.
+- **Daten laden:** Übersicht → Umfang wählen → „Lauf starten“. Hochlauf in drei Stufen:
+  1. *Probe 100* – 60 US- und 40 deutsche Aktien (größte Gewichte), ca. 10 Minuten
+  2. *Probe 500* – 100 je Region, ca. 45 Minuten
+  3. *Vollständig* – alle Aktien der Startliste, mehrere Stunden (über Nacht)
+- **Abbrechen / Fortsetzen:** Ein abgebrochener oder wegen Abrufsperren gestoppter Lauf lässt sich in der Übersicht fortsetzen; bereits geladene Daten werden nicht erneut abgerufen. Das gilt auch, wenn das Programm während eines Laufs geschlossen wurde.
+- **Datenqualität:** zeigt je Region, wie viele Aktien vollständige Daten haben, und warum etwas fehlt (unbekannter Ticker, Börse ohne Zuordnung, keine Daten).
 
 ## Aufbau
 
@@ -44,7 +50,8 @@ Das Skript
 config/scanner.yaml   Regeln, Schwellen, Gewichte (einzige Stelle für Einstellungen)
 src/scanner/core/     Rechen-Engine – kennt die Oberfläche nicht
 src/scanner/ui/       Oberfläche (NiceGUI)
-src/scanner/cli.py    Hilfsbefehle (scanner check)
+src/scanner/cli.py    Hilfsbefehle (scanner check, scanner run --scope probe_100)
+config/exchanges.yaml Börsenname → Yahoo-Tickerformat
 tests/                Unit-Tests
 install.sh            einmalige Einrichtung
 start.sh              Start (wird von der Desktop-Verknüpfung aufgerufen)
@@ -60,3 +67,6 @@ exports/              CSV-Exporte (nicht im Repo)
 | Browser öffnet sich nicht | `http://localhost:8765` selbst im Browser öffnen |
 | Seite nicht erreichbar | Fenster „Aktien-Scanner“ in der Taskleiste öffnen und Fehlermeldung ansehen |
 | Selbsttest schlägt fehl | Ausgabe von `~/aktien-scanner/.venv/bin/scanner check` an Claude schicken |
+| Startliste lässt sich nicht laden | Holdings-CSV des iShares MSCI ACWI ETF (ACWI) auf ishares.com über „Detaillierte Positionen“ herunterladen und als `~/aktien-scanner/data/start_list.csv` speichern – die Datei hat Vorrang vor dem Download |
+| „Yahoo sperrt die Abrufe“ | Lauf ist gestoppt, nicht verloren. Einige Stunden warten, dann „Fortsetzen“ |
+| Viele „Börse ohne Zuordnung“ | Seite Datenqualität als Screenshot an Claude schicken – die Zuordnung in `config/exchanges.yaml` wird ergänzt |

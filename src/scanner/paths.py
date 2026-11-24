@@ -29,6 +29,12 @@ def exports_dir() -> Path:
     return path
 
 
+def resolve_project_path(path: str | Path) -> Path:
+    """Resolve a path from the configuration relative to the project folder."""
+    path = Path(path)
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
 def database_path() -> Path:
     """Path of the SQLite database."""
     return data_dir() / "scanner.sqlite3"

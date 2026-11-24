@@ -1,0 +1,82 @@
+# Exchange names as they appear in the iShares holdings file -> Yahoo Finance ticker format.
+# Matching ignores case and surrounding spaces. Unmapped exchanges are reported in the UI
+# (page "Datenqualität") so this list can be completed after the first ramp-up run.
+#
+# suffix:            appended to the ticker (e.g. ".DE")
+# zero_pad:          left-pad numeric tickers with zeros to this length (e.g. Hong Kong 700 -> 0700)
+# separator:         replacement for "/" and "." inside the ticker (US: BRK.B -> BRK-B)
+# by_country:        suffix depending on the "Location" column (for shared exchange names)
+
+exchanges:
+  # North America
+  "New York Stock Exchange Inc.": {suffix: "", separator: "-"}
+  "NYSE": {suffix: "", separator: "-"}
+  "NASDAQ": {suffix: "", separator: "-"}
+  "Nasdaq": {suffix: "", separator: "-"}
+  "NYSE Arca": {suffix: "", separator: "-"}
+  "Nyse Mkt Llc": {suffix: "", separator: "-"}
+  "Cboe BZX formerly known as BATS": {suffix: "", separator: "-"}
+  "Toronto Stock Exchange": {suffix: ".TO", separator: "-"}
+
+  # Europe
+  "London Stock Exchange": {suffix: ".L", separator: "-"}
+  "Xetra": {suffix: ".DE"}
+  "Deutsche Boerse Xetra": {suffix: ".DE"}
+  "Nyse Euronext - Euronext Paris": {suffix: ".PA"}
+  "Euronext Paris": {suffix: ".PA"}
+  "Euronext Amsterdam": {suffix: ".AS"}
+  "Nyse Euronext - Euronext Brussels": {suffix: ".BR"}
+  "Euronext Brussels": {suffix: ".BR"}
+  "Nyse Euronext - Euronext Lisbon": {suffix: ".LS"}
+  "Irish Stock Exchange - All Market": {suffix: ".IR"}
+  "Borsa Italiana": {suffix: ".MI"}
+  "Bolsa De Madrid": {suffix: ".MC"}
+  "SIX Swiss Exchange": {suffix: ".SW"}
+  "Six Swiss Exchange": {suffix: ".SW"}
+  "Oslo Bors Asa": {suffix: ".OL"}
+  "Wiener Boerse Ag": {suffix: ".VI"}
+  "Omx Nordic Exchange Copenhagen A/S": {suffix: ".CO", separator: "-"}
+  "Nasdaq Omx Helsinki Ltd.": {suffix: ".HE"}
+  "Nasdaq Omx Nordic":
+    by_country: {Sweden: ".ST", Finland: ".HE", Denmark: ".CO"}
+    separator: "-"
+  "Tel Aviv Stock Exchange": {suffix: ".TA"}
+
+  # Asia Pacific
+  "Tokyo Stock Exchange": {suffix: ".T"}
+  "Hong Kong Exchanges And Clearing Ltd": {suffix: ".HK", zero_pad: 4}
+  "Singapore Exchange": {suffix: ".SI"}
+  "Asx - All Markets": {suffix: ".AX"}
+  "New Zealand Exchange Ltd": {suffix: ".NZ"}
+
+  # Emerging markets
+  "Korea Exchange (Stock Market)": {suffix: ".KS", zero_pad: 6}
+  "Korea Exchange (Kosdaq)": {suffix: ".KQ", zero_pad: 6}
+  "Taiwan Stock Exchange": {suffix: ".TW"}
+  "Gretai Securities Market": {suffix: ".TWO"}
+  "Shanghai Stock Exchange": {suffix: ".SS", zero_pad: 6}
+  "Shenzhen Stock Exchange": {suffix: ".SZ", zero_pad: 6}
+  "National Stock Exchange Of India": {suffix: ".NS"}
+  "Bombay Stock Exchange": {suffix: ".BO"}
+  "XBSP": {suffix: ".SA"}
+  "Bolsa De Valores De Sao Paulo": {suffix: ".SA"}
+  "Bolsa Mexicana De Valores": {suffix: ".MX"}
+  "Johannesburg Stock Exchange": {suffix: ".JO"}
+  "Saudi Stock Exchange": {suffix: ".SR"}
+  "Qatar Exchange": {suffix: ".QA"}
+  "Kuwait Stock Exchange": {suffix: ".KW"}
+  "Indonesia Stock Exchange": {suffix: ".JK"}
+  "Stock Exchange Of Thailand": {suffix: ".BK"}
+  "Bursa Malaysia": {suffix: ".KL"}
+  "Philippine Stock Exchange Inc.": {suffix: ".PS"}
+  "Warsaw Stock Exchange/Equities/Main Market": {suffix: ".WA"}
+  "Istanbul Stock Exchange": {suffix: ".IS"}
+  "Santiago Stock Exchange": {suffix: ".SN"}
+  "Athens Exchange": {suffix: ".AT"}
+  "Budapest Stock Exchange": {suffix: ".BD"}
+  "Prague Stock Exchange": {suffix: ".PR"}
+
+# Ticker spellings that cannot be derived by rule (holdings ticker -> Yahoo ticker)
+ticker_overrides:
+  BRKB: BRK-B
+  BFB: BF-B

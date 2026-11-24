@@ -2,22 +2,25 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 
 from nicegui import ui
 
-from scanner.config import ConfigError, ScannerConfig, load_config
+from scanner.config import ConfigError, ScannerConfig, load_config, load_exchanges
+from scanner.core import store
+from scanner.core.jobs import JobManager
 from scanner.ui.layout import frame
 from scanner.ui.pages import data_quality, overview, ranking, settings
 
 
-def register_pages(config: ScannerConfig) -> None:
+def register_pages(config: ScannerConfig, jobs: JobManager) -> None:
     """Register all routes. Kept separate from main() so tests can import it."""
 
     @ui.page("/")
     def _overview() -> None:
         with frame("/", config):
-            overview.render(config)
+            overview.render(config, jobs)
 
     @ui.page("/rangliste")
     def _ranking() -> None:
@@ -25,9 +28,9 @@ def register_pages(config: ScannerConfig) -> None:
             ranking.render(config)
 
     @ui.page("/datenqualitaet")
-    def _data_quality() -> None:
+    def _data_quality(run: int | None = None) -> None:
         with frame("/datenqualitaet", config):
-            data_quality.render(config)
+            data_quality.render(config, run)
 
     @ui.page("/einstellungen")
     def _settings() -> None:
@@ -36,13 +39,17 @@ def register_pages(config: ScannerConfig) -> None:
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     try:
         config = load_config()
+        load_exchanges(config)
     except ConfigError as exc:
         # fail closed: do not start with an invalid configuration
         print(exc, file=sys.stderr)
         sys.exit(1)
-    register_pages(config)
+    store.mark_stale_runs()  # runs interrupted by closing the program can be resumed
+    jobs = JobManager(config)
+    register_pages(config, jobs)
     ui.run(
         host=config.ui.host,
         port=config.ui.port,

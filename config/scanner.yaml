@@ -10,7 +10,20 @@ start_list:
   source: ishares_holdings_csv
   etf: ACWI
   url: "https://www.ishares.com/us/products/239600/ishares-msci-acwi-etf/1467271812596.ajax?fileType=csv&fileName=ACWI_holdings&dataType=fund"
-  # URL format is verified in Subphase B
+  # Fallback if the download fails: save the CSV from the iShares website to this path
+  # (relative to the project folder). Used instead of the download whenever the file exists.
+  local_file: data/start_list.csv
+  # Exchange names (as in the holdings file) -> Yahoo ticker suffix
+  exchanges_file: config/exchanges.yaml
+
+ramp_up:
+  # Samples for the ramp-up runs in Subphase B (largest positions by index weight)
+  probe_100:
+    label: "Probe 100 (USA + Deutschland)"
+    per_country: {United States: 60, Germany: 40}
+  probe_500:
+    label: "Probe 500 (alle Regionen)"
+    per_region: 100
 
 universe_rule:
   # Decision 7
@@ -72,7 +85,15 @@ data_source:
   # Decision 5
   provider: yfinance
   max_requests_per_minute: 60      # tuned during ramp-up in Subphase B
-  fundamentals_refresh_days: 90
+  max_retries: 4                   # per request, waiting retry_base_seconds * 2^n
+  retry_base_seconds: 30
+  abort_after_consecutive_rate_limits: 5   # then the run stops and can be resumed later
+  history_price_days: 400          # stored daily prices; dividends/splits are kept in full
+  refresh:                         # cached data younger than this is reused
+    history_hours: 12
+    info_days: 7
+    statements_days: 90
+    fx_hours: 12
 
 schedule:
   # Decision 6

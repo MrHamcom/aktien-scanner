@@ -82,7 +82,12 @@ def render(config: ScannerConfig) -> None:
         with ui.card().classes("as-card p-6 gap-1"):
             ui.label("Betrieb").classes("text-lg font-medium mb-2")
             _row("Datenquelle", config.data_source.provider)
-            _row("Abrufe pro Minute (max.)", str(config.data_source.max_requests_per_minute))
+            ds = config.data_source
+            _row("Abrufe pro Minute (max.)", str(ds.max_requests_per_minute))
+            _row("Wiederholungen bei Sperre", f"{ds.max_retries}× ab {ds.retry_base_seconds} s")
+            _row("Kurse/Stammdaten neu nach",
+                 f"{ds.refresh.history_hours} h / {ds.refresh.info_days} Tagen")
+            _row("Abschlüsse neu nach", f"{ds.refresh.statements_days} Tagen")
             _row("Rhythmus", "manuell" if config.schedule.mode == "manual" else "monatlich")
             _row("Konfigurationsversion", str(config.config_version))
             ui.label(str(config_path())).classes("text-xs as-muted mt-2 break-all")
