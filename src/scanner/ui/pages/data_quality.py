@@ -95,7 +95,7 @@ def render(config: ScannerConfig, run_id: int | None = None) -> None:
             ui.label("Umfang").classes("text-lg font-medium mb-2")
             for label, value in (
                 ("Positionen in diesem Lauf", total.listed),
-                ("davon ausgeschlossen (Sektor, nicht gelistet)", total.excluded),
+                ("davon ausgeschlossen (Sektor, nicht handelbar)", total.excluded),
                 ("davon ohne Börsen-Zuordnung", total.unmapped),
                 ("abgefragt", total.included),
                 ("vollständig geladen", total.complete),

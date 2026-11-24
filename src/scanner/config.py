@@ -160,6 +160,7 @@ class ExchangeRule(_Strict):
     by_country: dict[str, str] | None = None
     zero_pad: int | None = Field(default=None, ge=1)
     separator: str | None = None
+    strip_suffixes: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _suffix_or_country(self) -> ExchangeRule:

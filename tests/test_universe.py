@@ -52,6 +52,12 @@ def test_download_url_points_to_csv(config) -> None:
         ("VOLV B", "Nasdaq Omx Nordic", "Sweden", "VOLV-B.ST"),
         ("5930", "Korea Exchange (Stock Market)", "Korea (South)", "005930.KS"),
         ("SAP", "XETRA", "Germany", "SAP.DE"),  # case-insensitive exchange name
+        ("ADVANC-R", "Stock Exchange Of Thailand", "Thailand", "ADVANC.BK"),
+        ("PTT.R", "Stock Exchange Of Thailand", "Thailand", "PTT.BK"),
+        ("WALMEX*", "Bolsa Mexicana De Valores", "Mexico", "WALMEX.MX"),
+        ("ETE", "Athens Exchange S.A. Cash Market", "Greece", "ETE.AT"),
+        ("EMAAR", "Dubai Financial Market", "United Arab Emirates", "EMAAR.AE"),
+        ("RELIANCE", "Bse Ltd", "India", "RELIANCE.BO"),
     ],
 )
 def test_yahoo_ticker_mapping(config, ticker, exchange, country, expected) -> None:
@@ -122,3 +128,18 @@ def test_unlisted_holdings_are_excluded_not_unmapped(config) -> None:
 def test_cboe_bzx_is_us(config) -> None:
     yahoo, _ = to_yahoo_ticker(_holding("CBOE", "Cboe BZX"), load_exchanges(config))
     assert yahoo == "CBOE"
+
+
+def test_zero_weight_holding_is_excluded(config) -> None:
+    holding = Holding("PHOR", "PHOSAGRO GDR", "Materials", "Equity", 0.0, "Russian Federation",
+                      "London Stock Exchange", "USD")
+    entries = build_start_list([holding], config, load_exchanges(config))
+    assert entries[0].status == "excluded" and entries[0].reason == "zero_weight"
+
+
+def test_abu_dhabi_stays_unmapped(config) -> None:
+    yahoo, reason = to_yahoo_ticker(
+        _holding("ALDAR", "Abu Dhabi Securities Exchange", "United Arab Emirates"),
+        load_exchanges(config),
+    )
+    assert yahoo is None and reason.startswith("exchange_unmapped")

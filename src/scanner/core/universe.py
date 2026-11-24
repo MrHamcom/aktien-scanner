@@ -146,7 +146,12 @@ def to_yahoo_ticker(holding: Holding, exchanges: ExchangesConfig) -> tuple[str |
     else:
         suffix = rule.suffix or ""
 
-    symbol = holding.ticker.strip().rstrip(".")
+    symbol = holding.ticker.strip().replace("*", "")  # Mexico: series marker "WALMEX*"
+    for ending in rule.strip_suffixes:
+        if symbol.endswith(ending) and len(symbol) > len(ending):
+            symbol = symbol[: -len(ending)]
+            break
+    symbol = symbol.rstrip(".")
     if rule.zero_pad and symbol.isdigit():
         symbol = symbol.zfill(rule.zero_pad)
     if rule.separator is not None:
@@ -166,12 +171,15 @@ def build_start_list(
     for h in sorted(holdings, key=lambda x: x.weight, reverse=True):
         if h.asset_class.casefold() != "equity":
             continue
-        if exchanges.is_unlisted(h.exchange):
+        not_tradable = "unlisted" if exchanges.is_unlisted(h.exchange) else None
+        if not_tradable is None and h.weight <= 0:
+            not_tradable = "zero_weight"  # held at zero value, e.g. suspended Russian GDRs
+        if not_tradable:
             entries.append(
                 StartListEntry(
                     source_ticker=h.ticker, yahoo_ticker=None, name=h.name, sector=h.sector,
                     country=h.country, region=config.region_of(h.country), exchange=h.exchange,
-                    currency=h.currency, weight=h.weight, status="excluded", reason="unlisted",
+                    currency=h.currency, weight=h.weight, status="excluded", reason=not_tradable,
                 )
             )
             continue
