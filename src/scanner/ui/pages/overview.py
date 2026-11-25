@@ -72,6 +72,12 @@ def render(config: ScannerConfig, jobs: JobManager) -> None:
                 _kpi("task_alt", "Vollständig geladen", fmt.number(run.rated_count),
                      f"von {fmt.number(queried)} abgefragten Aktien" if queried
                      else "Startliste nicht geladen")
+                evaluations = store.get_evaluations(run.id)
+                if evaluations:
+                    rated = sum(1 for e in evaluations if e.status == "rated")
+                    _kpi("verified", "Bewertbar", fmt.number(rated),
+                         f"{fmt.number(len(evaluations) - rated)} ausgeschlossen – "
+                         "Gründe unter Datenqualität")
             _kpi("public", "Startliste", config.start_list.etf, "Welt-ETF (MSCI ACWI)")
             _kpi("cloud_download", "Datenquelle", config.data_source.provider,
                  f"max. {config.data_source.max_requests_per_minute} Abrufe pro Minute")

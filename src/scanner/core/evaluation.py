@@ -142,4 +142,46 @@ def evaluate_run(
     return summary
 
 
-__all__ = ["STAGES", "EvaluationSummary", "evaluate_run", "needed_fx_pairs"]
+__all__ = ["STAGES", "EvaluationSummary", "ExclusionReport", "evaluate_run", "exclusion_report",
+           "needed_fx_pairs"]
+
+
+@dataclass
+class ExclusionReport:
+    """Exclusion funnel per region and the reasons behind it (for the data quality page)."""
+
+    regions: dict[str, Counter]  # region -> stage/rated -> count
+    reasons: list[tuple[str, str, int, list[str]]]  # stage, reason, count, tickers
+    flags: Counter
+
+    @property
+    def total(self) -> Counter:
+        result: Counter = Counter()
+        for counts in self.regions.values():
+            result.update(counts)
+        return result
+
+
+def exclusion_report(run_id: int, db_path: Path | None = None) -> ExclusionReport | None:
+    rows = store.get_evaluations(run_id, db_path)
+    if not rows:
+        return None
+    region_of = {e.yahoo_ticker: e.region or "ohne Region"
+                 for e in store.get_start_list(run_id, db_path) if e.yahoo_ticker}
+    regions: dict[str, Counter] = defaultdict(Counter)
+    reasons: dict[tuple[str, str], list[str]] = defaultdict(list)
+    flags: Counter = Counter()
+    for row in rows:
+        regions[region_of.get(row.key, "ohne Region")][row.status] += 1
+        if row.status != RATED:
+            reasons[(row.status, row.reason or "")].append(row.key)
+        else:
+            flags.update(row.flags)
+    ordered = sorted(reasons.items(),
+                     key=lambda kv: (STAGES.index(kv[0][0]) if kv[0][0] in STAGES else 99,
+                                     -len(kv[1])))
+    return ExclusionReport(
+        regions=dict(sorted(regions.items(), key=lambda kv: -sum(kv[1].values()))),
+        reasons=[(stage, reason, len(keys), sorted(keys)) for (stage, reason), keys in ordered],
+        flags=flags,
+    )
