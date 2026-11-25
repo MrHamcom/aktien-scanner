@@ -121,8 +121,9 @@ def test_minor_units() -> None:
 
 def test_pence_quote_with_pound_statements(config) -> None:
     # price 2,000 pence = 20 GBP; 1 GBP = 1.2 EUR -> market cap 100 Mio x 20 x 1.2 = 2.4 Mrd €
+    # (Yahoo reports the market cap in pounds, the price in pence)
     s = company(hist=history([2000.0] * 300, currency="GBp"),
-               info={"currency": "GBp", "financialCurrency": "GBP", "marketCap": 200_000 * M},
+               info={"currency": "GBp", "financialCurrency": "GBP", "marketCap": 2000 * M},
                fx={"GBP": 1.2})
     r = market.compute(s, config.validation, 20)
     assert r.values["market_cap_eur"] == pytest.approx(2400 * M)
@@ -273,3 +274,21 @@ def test_statement_accepts_camel_case_rows() -> None:
                     "values": [[5.0], [7.0]]})
     assert st.value(("Cash And Cash Equivalents",)) == 5.0
     assert st.value("EBIT") == 7.0
+
+
+def test_statement_drops_newest_period_without_core_rows() -> None:
+    # Yahoo lists a just-ended fiscal year whose figures are still empty
+    st = Statement({"periods": ["2026-10-31", "2025-10-31"],
+                    "items": ["TotalRevenue", "NetIncome", "EBIT"],
+                    "values": [[None, 100.0], [None, 10.0], [None, 15.0]]},
+                   ("Total Revenue", "Net Income"))
+    assert st.periods == ["2025-10-31"]
+    assert st.value("EBIT") == 15.0
+    assert st.dropped_periods == ["2026-10-31"]
+
+
+def test_statement_keeps_periods_when_core_row_is_absent() -> None:
+    # some reports have no "Operating Cash Flow" row at all – that is not an empty period
+    st = Statement({"periods": ["2026-06-30"], "items": ["FreeCashFlow"], "values": [[5.0]]},
+                   ("Operating Cash Flow",))
+    assert st.periods == ["2026-06-30"]

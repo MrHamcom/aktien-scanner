@@ -69,3 +69,11 @@ def free_cash_flow(cashflow, year: int = 0) -> float | None:
     if ocf is not None and capex is not None:
         return ocf + capex if capex <= 0 else ocf - capex
     return cashflow.value(FREE_CASH_FLOW, year)
+
+
+# Rows that must be filled for a period to count as a complete annual report
+CORE_ROWS = {
+    "income": ("Total Revenue", "Net Income"),
+    "balance": ("Total Assets", "Stockholders Equity"),
+    "cashflow": ("Operating Cash Flow",),
+}

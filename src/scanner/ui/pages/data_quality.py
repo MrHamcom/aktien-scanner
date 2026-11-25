@@ -86,6 +86,11 @@ FLAG_TEXT = {
     "dividend_history_short": "Dividendenhistorie kurz",
     "debt_row_missing": "keine Schulden-Zeile (als 0 gewertet)",
     "fcf_history_short": "Free-Cashflow-Historie kürzer als 3 Jahre",
+    "altman_unavailable": "Altman-Z nicht berechenbar (Filter übersprungen)",
+    "roic_capped": "Kapitalrendite begrenzt (mehr Kasse als Kapital)",
+    "negative_fcf": "Free Cashflow negativ (2 von 3 Jahren)",
+    "altman_z_low": "Altman-Z unter Schwelle",
+    "dilution": "Verwässerung über Schwelle",
 }
 
 

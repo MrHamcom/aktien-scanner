@@ -53,6 +53,10 @@ class ValueTrapFilters(_Strict):
     negative_fcf_years_of_last_3: int = Field(ge=1, le=3)
     min_altman_z: float
     max_share_dilution_12m: float = Field(ge=0)
+    # per filter: "exclude" (before the ranking, decided in the concept) or "flag" (warning)
+    negative_fcf_action: Literal["exclude", "flag"] = "exclude"
+    altman_action: Literal["exclude", "flag"] = "exclude"
+    dilution_action: Literal["exclude", "flag"] = "exclude"
 
 
 class Ranking(_Strict):
@@ -105,6 +109,7 @@ class ValidationRules(_Strict):
     max_market_cap_deviation: float = Field(gt=0)
     min_piotroski_signals: int = Field(ge=1, le=9)
     min_name_similarity: float = Field(ge=0, le=1)
+    name_confirmed: list[str] = Field(default_factory=list)
 
 
 class Refresh(_Strict):

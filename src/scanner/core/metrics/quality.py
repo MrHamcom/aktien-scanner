@@ -31,6 +31,7 @@ from scanner.core.metrics.common import (
 from scanner.core.metrics.inputs import StockInputs
 
 NET_DEBT_EBITDA_WORST = 20.0  # used when EBITDA <= 0 but the company has net debt
+ROIC_CAP = 1.0  # +-100 %: beyond that the ratio says nothing more for the ranking
 
 DEFAULT_TAX_RATE = 0.25
 
@@ -53,8 +54,10 @@ def roic(s: StockInputs) -> tuple[float | None, str | None]:
         return None, "roic_inputs_missing"
     invested = debt + equity - cash
     if invested <= 0:
-        return None, "invested_capital_nonpositive"
-    return ebit * (1 - tax_rate(s)) / invested, None
+        # more cash than debt + equity (e.g. buybacks below zero equity): the business needs
+        # no net capital. Profitable -> best possible ROIC, otherwise worst.
+        return (ROIC_CAP if ebit > 0 else -ROIC_CAP), "roic_capped"
+    return max(-ROIC_CAP, min(ROIC_CAP, ebit * (1 - tax_rate(s)) / invested)), None
 
 
 def piotroski(s: StockInputs) -> tuple[float | None, int, list[str]]:
@@ -143,7 +146,9 @@ def compute(s: StockInputs, market_cap_eur: float | None, rules: ValidationRules
     r = MetricResult()
     value, issue = roic(s)
     r.values["roic"] = value
-    if issue:
+    if issue == "roic_capped":
+        r.flags.append(issue)
+    elif issue:
         r.missing(issue)
 
     score, available, failed = piotroski(s)
@@ -160,7 +165,9 @@ def compute(s: StockInputs, market_cap_eur: float | None, rules: ValidationRules
     z = altman_z(s, market_cap_eur)
     r.values["altman_z"] = z
     if z is None:
-        r.missing("altman_inputs_missing")
+        # only used by the value-trap filter; many IFRS reports have no retained-earnings
+        # row, so the filter is skipped (and shown) instead of excluding the company
+        r.flags.append("altman_unavailable")
 
     fcf = [free_cash_flow(s.cashflow, y) for y in range(3)]
     known = [v for v in fcf if v is not None]

@@ -84,6 +84,15 @@ def test_wrong_security_type(config) -> None:
         ("TENAGA NASIONAL", "Tenaga Nasional Berhad", True),
         ("SD GUTHRIE", "SD Guthrie Berhad", True),
         ("TOYOTA MOTOR CORP", "Toyota Motor Corporation", True),
+        ("LOREAL SA", "L'Oréal S.A.", True),
+        ("ORSTED A/S", "Ørsted A/S", True),
+        ("WALMART DE MEXICO V", "Wal-Mart de México, S.A.B. de C.V.", True),
+        ("DIETEREN (D) SA", "D'Ieteren Group SA", True),
+        ("MOL HUNGARIAN OIL AND GAS", "MOL Magyar Olaj- és Gázipari Nyrt", True),
+        ("KOC HOLDING A", "Koç Holding A.S.", True),
+        ("BMW", "Bayerische Motoren Werke Aktiengesellschaft", True),
+        ("DSM FIRMENICH AG", "DSM-Firmenich AG", True),
+        ("AL-ELM INFORMATION SECURITY COMPAN", "Elm Company", True),
         ("TENAGA NASIONAL", "Telekom Malaysia Berhad", False),
         ("APPLE INC", "Microsoft Corporation", False),
     ],
@@ -112,3 +121,12 @@ def test_second_share_class_is_removed(config) -> None:
 def test_company_key_ignores_class_suffix() -> None:
     assert _company_key("Alphabet Inc. Class A", "US") == _company_key("Alphabet Inc.", "US")
     assert _company_key("Volvo AB Ser. B", "SE") == _company_key("Volvo AB", "SE")
+
+
+def test_value_trap_as_flag_only(config) -> None:
+    traps = config.value_trap_filters.model_copy(update={"negative_fcf_action": "flag"})
+    cfg = config.model_copy(update={"value_trap_filters": traps})
+    cf = company_cashflow(**{"Operating Cash Flow": [180 * M, 20 * M, 10 * M]})
+    ev = evaluate(company(cashflow=cf), cfg)
+    assert ev.rated
+    assert "negative_fcf" in ev.flags

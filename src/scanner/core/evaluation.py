@@ -14,6 +14,7 @@ from pathlib import Path
 
 from scanner.config import ScannerConfig
 from scanner.core import store
+from scanner.core.metrics.common import CORE_ROWS
 from scanner.core.metrics.inputs import FxRates, PriceHistory, Statement, StockInputs, fx_pair
 from scanner.core.sources.base import DATASETS
 from scanner.core.validate import RATED, STAGES, Evaluation, evaluate
@@ -35,7 +36,9 @@ class EvaluationSummary:
 
 def needed_fx_pairs(infos: list[dict], quote_currencies: list[str | None]) -> set[str]:
     currencies = set(quote_currencies)
-    currencies.update(i.get("financialCurrency") for i in infos if i)
+    for info in infos:
+        if info:  # Yahoo may quote in a minor unit the start list does not show (ILA, GBp)
+            currencies.update((info.get("financialCurrency"), info.get("currency")))
     return {p for c in currencies if (p := fx_pair(c))}
 
 
@@ -116,9 +119,9 @@ def evaluate_run(
             country=entry.country or "", region=entry.region,
             history=PriceHistory.from_payload(history) if history else None,
             info=payload(key, "info") or {},
-            income=Statement(payload(key, "income")),
-            balance=Statement(payload(key, "balance")),
-            cashflow=Statement(payload(key, "cashflow")),
+            income=Statement(payload(key, "income"), CORE_ROWS["income"]),
+            balance=Statement(payload(key, "balance"), CORE_ROWS["balance"]),
+            cashflow=Statement(payload(key, "cashflow"), CORE_ROWS["cashflow"]),
             fx=fx, as_of=as_of,
         )
         inputs[key] = s

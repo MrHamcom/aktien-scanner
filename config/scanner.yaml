@@ -42,6 +42,11 @@ value_trap_filters:
   negative_fcf_years_of_last_3: 2
   min_altman_z: 1.8
   max_share_dilution_12m: 0.10
+  # exclude = removed before the ranking (concept, section 6); flag = warning only.
+  # Open decision after Subphase C: the filters hit utilities very hard (see Konzeptplan).
+  negative_fcf_action: exclude
+  altman_action: exclude
+  dilution_action: exclude
 
 ranking:
   peer_group: [sector, region]
@@ -81,6 +86,14 @@ validation:
   max_market_cap_deviation: 0.5     # Yahoo market cap vs. price x shares
   min_piotroski_signals: 7          # of 9 signals must be computable
   min_name_similarity: 0.34         # iShares name vs. Yahoo name (guards wrong tickers)
+  name_confirmed:                   # checked by hand: renamed companies, ticker is right
+    - 000988.SZ    # Huagong Tech -> HGTECH
+    - 603993.SS    # China Molybdenum -> CMOC Group
+    - 7769.TW      # Hon Precision (written "Hon. Precision")
+    - FWONK        # Liberty Media Series C = Formula One Group tracking stock
+    - SIGMAFA.MX   # Alfa -> Sigma Foods
+    - PRIO3.SA     # PetroRio -> Prio
+    - GSK.L        # GlaxoSmithKline -> GSK plc
 
 regions:
   # Peer groups for ranking (sector x region). Country names as used in iShares holdings files.

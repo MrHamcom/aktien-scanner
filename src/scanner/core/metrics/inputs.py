@@ -48,7 +48,9 @@ def _item_key(name: str) -> str:
 class Statement:
     """Annual statement as stored by the Yahoo adapter: items x periods, newest period first."""
 
-    def __init__(self, payload: dict[str, Any] | None) -> None:
+    def __init__(self, payload: dict[str, Any] | None, required: tuple[str, ...] = ()) -> None:
+        """`required`: core rows; newest periods where one of them is empty are dropped.
+        Yahoo often lists a just-ended fiscal year before the figures are filled in."""
         payload = payload or {}
         self.periods: list[str] = list(payload.get("periods") or [])
         self._rows: dict[str, list[float | None]] = {
@@ -62,6 +64,14 @@ class Statement:
             for v in self._rows.values()
         ):
             self.periods.pop()
+        self.dropped_periods: list[str] = []
+        keys = [k for k in (_item_key(r) for r in required) if k in self._rows]
+        while self.periods and keys and any(
+            not self._rows[k] or self._rows[k][0] is None for k in keys
+        ):
+            self.dropped_periods.append(self.periods.pop(0))
+            for k in self._rows:
+                self._rows[k] = self._rows[k][1:]
 
     def __bool__(self) -> bool:
         return bool(self.periods)

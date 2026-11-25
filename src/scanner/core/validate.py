@@ -7,6 +7,7 @@ why. All metric values are kept even for excluded stocks so the user can see wha
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 
 from scanner.config import ScannerConfig
@@ -31,6 +32,7 @@ _NAME_STOPWORDS = {
     "berhad", "bhd", "tbk", "pt", "pcl", "public", "kk", "adr", "ord", "shs", "reg", "sab",
     "de", "cv", "oyj", "ltda", "lp", "a", "b", "c", "h", "n", "v", "i", "ii", "s", "of", "jsc",
     "pjsc", "gmbh", "kgaa", "ltd.", "intl", "international", "industries", "co.", "shares",
+    "aktiengesellschaft", "societe", "anonyme", "sociedad", "anonima", "nyrt", "abp",
 }
 
 
@@ -53,21 +55,39 @@ class Evaluation:
             self.status, self.reason, self.detail = stage, reason, detail
 
 
-def _tokens(name: str) -> set[str]:
-    words = re.findall(r"[a-z0-9]+", name.casefold())
-    return {w for w in words if w not in _NAME_STOPWORDS and len(w) > 1}
+def _words(name: str) -> list[str]:
+    """Significant words: accents removed (Ørsted, L'Oréal), legal forms and filler words
+    dropped. Words joined by apostrophes or hyphens are kept both joined and split
+    (D'Ieteren -> dieteren, d, ieteren; DSM-Firmenich -> dsmfirmenich, dsm, firmenich)."""
+    text = unicodedata.normalize("NFKD", name.replace("ø", "o").replace("Ø", "O"))
+    text = "".join(c for c in text if not unicodedata.combining(c)).casefold()
+    words: list[str] = []
+    for chunk in text.split():
+        parts = re.findall(r"[a-z0-9]+", chunk)
+        candidates = (["".join(parts)] if len(parts) > 1 else []) + parts
+        words.extend(w for w in candidates if w not in _NAME_STOPWORDS and len(w) > 1)
+    return words
+
+
+def _initials(words: list[str]) -> str:
+    return "".join(w[0] for w in words)
 
 
 def name_similarity(a: str, b: str) -> float:
-    """Share of the shorter name's significant words found in the other name.
-    Words match on their first four letters ("MANUFACTURING" ~ "Manufacturing Co")."""
-    ta, tb = _tokens(a), _tokens(b)
-    if not ta or not tb:
+    """1.0 if the first significant word of one name appears in the other or one name is the
+    acronym of the other (BMW), else the share of the shorter name's words found in the
+    other. Words match on their first four letters ("MANUFACTURING" ~ "Manufacturing")."""
+    wa, wb = _words(a), _words(b)
+    if not wa or not wb:
         return 1.0  # nothing to compare -> no evidence against the match
-    small, large = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
-    prefixes = {w[:4] for w in large}
-    hits = sum(1 for w in small if w[:4] in prefixes)
-    return hits / len(small)
+    pa, pb = {w[:4] for w in wa}, {w[:4] for w in wb}
+    if wa[0][:4] in pb or wb[0][:4] in pa:
+        return 1.0
+    for word, other in ((wa[0], wb), (wb[0], wa)):
+        if len(word) >= 3 and _initials(other).startswith(word):
+            return 1.0
+    small, large = (pa, pb) if len(pa) <= len(pb) else (pb, pa)
+    return len(small & large) / len(small)
 
 
 # Issues that do not make the whole stock unusable
@@ -101,7 +121,7 @@ def evaluate(
     yahoo_name = str(s.info.get("longName") or s.info.get("shortName") or "")
     similarity = name_similarity(s.name, yahoo_name) if yahoo_name else 1.0
     result.values["name_similarity"] = similarity
-    if similarity < rules.min_name_similarity:
+    if similarity < rules.min_name_similarity and s.key not in rules.name_confirmed:
         result.missing("name_mismatch", f"Startliste „{s.name}“ / Yahoo „{yahoo_name}“")
     statement_date = s.income.period_date(0)
     if statement_date is None:
@@ -124,14 +144,21 @@ def evaluate(
         ev.exclude("liquidity", "turnover_below", f"{adv / 1e6:.1f} Mio. € pro Tag")
 
     traps = config.value_trap_filters
+
+    def trap(action: str, reason: str, detail: str) -> None:
+        if action == "exclude":
+            ev.exclude("value_trap", reason, detail)
+        elif reason not in ev.flags:
+            ev.flags.append(reason)
+
     negative = ev.metrics.get("negative_fcf_years")
     if negative is not None and negative >= traps.negative_fcf_years_of_last_3:
-        ev.exclude("value_trap", "negative_fcf", f"{negative:.0f} von 3 Jahren")
+        trap(traps.negative_fcf_action, "negative_fcf", f"{negative:.0f} von 3 Jahren")
     z = ev.metrics.get("altman_z")
     if z is not None and z < traps.min_altman_z:
-        ev.exclude("value_trap", "altman_z_low", f"Z = {z:.2f}")
+        trap(traps.altman_action, "altman_z_low", f"Z = {z:.2f}")
     dilution = ev.metrics.get("share_change_1y")
     if dilution is not None and dilution > traps.max_share_dilution_12m:
-        ev.exclude("value_trap", "dilution", f"Aktienanzahl {dilution:+.0%} in 12 Monaten")
+        trap(traps.dilution_action, "dilution", f"Aktienanzahl {dilution:+.0%} in 12 Monaten")
     return ev
 
