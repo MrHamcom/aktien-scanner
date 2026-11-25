@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import sqlite3
 import sys
 import time
+from pathlib import Path
 
 from scanner import __version__
 from scanner.config import ConfigError, load_config, load_exchanges
@@ -12,7 +14,7 @@ from scanner.core import coverage, store
 from scanner.core.jobs import default_source
 from scanner.core.pipeline import Progress, ScanRun
 from scanner.core.universe import scope_labels
-from scanner.paths import config_path, database_path
+from scanner.paths import PROJECT_ROOT, config_path, database_path
 
 
 def _check() -> int:
@@ -56,6 +58,36 @@ def _run(scope: str, resume: int | None) -> int:
     return 0 if run and run.status == "finished" else 1
 
 
+def _windows_downloads() -> Path | None:
+    """The Windows Downloads folder as seen from WSL, if exactly one user folder has one."""
+    users = Path("/mnt/c/Users")
+    if not users.is_dir():
+        return None
+    skip = {"public", "default", "default user", "all users"}
+    candidates = [
+        d / "Downloads"
+        for d in users.iterdir()
+        if d.name.casefold() not in skip and (d / "Downloads").is_dir()
+    ]
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def _export_db(target: str | None) -> int:
+    """Consistent copy of the database (SQLite backup API, safe while the UI is running)."""
+    source = database_path()
+    if not source.is_file():
+        print(f"Keine Datenbank gefunden: {source}")
+        return 1
+    folder = Path(target) if target else (_windows_downloads() or PROJECT_ROOT / "exports")
+    folder.mkdir(parents=True, exist_ok=True)
+    destination = folder / f"aktien-scanner-{time.strftime('%Y%m%d-%H%M')}.sqlite3"
+    with sqlite3.connect(source) as src, sqlite3.connect(destination) as dst:
+        src.backup(dst)
+    size_mb = destination.stat().st_size / 1e6
+    print(f"Datenbank kopiert: {destination} ({size_mb:.0f} MB)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="scanner", description="Aktien-Scanner – Hilfsbefehle")
     parser.add_argument("--version", action="version", version=__version__)
@@ -65,12 +97,18 @@ def main(argv: list[str] | None = None) -> None:
     run_parser = sub.add_parser("run", help="Datenlauf ohne Oberfläche (für Automatisierung)")
     run_parser.add_argument("--scope", default="full", help="probe_100, probe_500 oder full")
     run_parser.add_argument("--resume", type=int, help="Lauf-Nummer fortsetzen")
+    export_parser = sub.add_parser(
+        "export-db", help="Kopie der Datenbank (Standard: Windows-Downloads-Ordner)"
+    )
+    export_parser.add_argument("--to", help="Zielordner")
     args = parser.parse_args(argv)
 
     if args.command == "check":
         sys.exit(_check())
     if args.command == "run":
         sys.exit(_run(args.scope, args.resume))
+    if args.command == "export-db":
+        sys.exit(_export_db(args.to))
     if args.command == "ui":
         from scanner.ui.app import main as ui_main
 
