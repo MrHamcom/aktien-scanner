@@ -81,12 +81,30 @@ class Profile(_Strict):
         return weights
 
 
-class Dividend(_Strict):
+class DividendRules(_Strict):
     trap_yield_above: float = Field(gt=0)
     max_fcf_payout_last_year: float = Field(gt=0)
     max_fcf_payout_avg_3y: float = Field(gt=0)
     streak_cap_years: int = Field(ge=1)
     growth_years: int = Field(ge=1)
+    cut_tolerance: float = Field(ge=0, lt=1)
+    special_factor: float = Field(gt=1)
+    payer_window_days: int = Field(ge=30)
+    share_increase_flag_3y: float = Field(ge=0)
+    max_plausible_yield: float = Field(gt=0)
+
+
+Dividend = DividendRules  # backwards-compatible name
+
+
+class ValidationRules(_Strict):
+    """Plausibility rules: data that fails them is excluded with a reason (fail closed)."""
+
+    max_price_age_days: int = Field(ge=1)
+    max_statement_age_days: int = Field(ge=90)
+    max_market_cap_deviation: float = Field(gt=0)
+    min_piotroski_signals: int = Field(ge=1, le=9)
+    min_name_similarity: float = Field(ge=0, le=1)
 
 
 class Refresh(_Strict):
@@ -130,7 +148,8 @@ class ScannerConfig(_Strict):
     value_trap_filters: ValueTrapFilters
     ranking: Ranking
     profiles: dict[str, Profile]
-    dividend: Dividend
+    dividend: DividendRules
+    validation: ValidationRules
     regions: dict[str, list[str]]
     data_source: DataSource
     schedule: Schedule

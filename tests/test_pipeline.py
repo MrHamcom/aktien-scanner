@@ -139,3 +139,13 @@ def test_coverage_report(config, db, sample_csv) -> None:
     europe = next(r for r in cov.regions if r.region == "Europe")
     assert europe.complete_share == 1.0
     assert set(DATASETS) <= set(europe.loaded)
+
+
+def test_run_ends_with_evaluation(config, db, sample_csv) -> None:
+    run_id = _run(_fast(config), db, sample_csv).start("full")
+    evaluations = {e.key: e for e in store.get_evaluations(run_id, db)}
+    included = [e for e in store.get_start_list(run_id, db) if e.status == "included"]
+    assert len(evaluations) == len(included)
+    assert evaluations["MISSINGCO"].status == "data"
+    assert any(e.status == "rated" for e in evaluations.values())
+    assert "bewertbar" in (store.get_run(run_id, db).note or "")

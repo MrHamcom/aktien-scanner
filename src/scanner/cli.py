@@ -58,6 +58,21 @@ def _run(scope: str, resume: int | None) -> int:
     return 0 if run and run.status == "finished" else 1
 
 
+def _evaluate(run_id: int | None) -> int:
+    from scanner.core.evaluation import evaluate_run
+
+    config = load_config()
+    run = store.get_run(run_id) if run_id else store.latest_run()
+    if run is None:
+        print("Kein Lauf gefunden")
+        return 1
+    summary = evaluate_run(run.id, config)
+    print(f"Lauf {run.id}: {summary.message}")
+    for stage, count in summary.by_stage.most_common():
+        print(f"  {stage:<14} {count:>5}")
+    return 0
+
+
 def _windows_downloads() -> Path | None:
     """The Windows Downloads folder as seen from WSL, if exactly one user folder has one."""
     users = Path("/mnt/c/Users")
@@ -97,6 +112,8 @@ def main(argv: list[str] | None = None) -> None:
     run_parser = sub.add_parser("run", help="Datenlauf ohne Oberfläche (für Automatisierung)")
     run_parser.add_argument("--scope", default="full", help="probe_100, probe_500 oder full")
     run_parser.add_argument("--resume", type=int, help="Lauf-Nummer fortsetzen")
+    eval_parser = sub.add_parser("evaluate", help="Kennzahlen eines Laufs neu berechnen")
+    eval_parser.add_argument("run", nargs="?", type=int, help="Lauf-Nummer (Standard: letzter)")
     export_parser = sub.add_parser(
         "export-db", help="Kopie der Datenbank (Standard: Windows-Downloads-Ordner)"
     )
@@ -107,6 +124,8 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(_check())
     if args.command == "run":
         sys.exit(_run(args.scope, args.resume))
+    if args.command == "evaluate":
+        sys.exit(_evaluate(args.run))
     if args.command == "export-db":
         sys.exit(_export_db(args.to))
     if args.command == "ui":

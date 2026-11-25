@@ -68,6 +68,19 @@ dividend:
   max_fcf_payout_avg_3y: 0.8
   streak_cap_years: 25
   growth_years: 5
+  cut_tolerance: 0.05         # a dividend year more than 5 % below the previous one is a cut
+  special_factor: 4.0         # a payment above 4x the usual amount is a special dividend
+  payer_window_days: 450      # no regular payment for longer -> non-payer
+  share_increase_flag_3y: 0.10  # shares +10 % in 3 years while paying -> flag
+  max_plausible_yield: 0.40   # above: data error (currency/unit), excluded
+
+validation:
+  # Plausibility rules (fail closed): failing stocks are excluded with the reason shown
+  max_price_age_days: 10
+  max_statement_age_days: 550       # latest annual report older than ~18 months -> stale
+  max_market_cap_deviation: 0.5     # Yahoo market cap vs. price x shares
+  min_piotroski_signals: 7          # of 9 signals must be computable
+  min_name_similarity: 0.34         # iShares name vs. Yahoo name (guards wrong tickers)
 
 regions:
   # Peer groups for ranking (sector x region). Country names as used in iShares holdings files.

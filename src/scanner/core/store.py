@@ -71,6 +71,19 @@ CREATE TABLE IF NOT EXISTS run_items (
     updated_at      TEXT    NOT NULL,
     PRIMARY KEY (run_id, key, dataset)
 );
+
+CREATE TABLE IF NOT EXISTS evaluations (
+    run_id          INTEGER NOT NULL REFERENCES runs(id),
+    key             TEXT    NOT NULL,
+    status          TEXT    NOT NULL,   -- 'rated' or the stage that excluded the stock
+    reason          TEXT,
+    detail          TEXT,
+    issues          TEXT    NOT NULL,   -- JSON list of [code, detail]
+    flags           TEXT    NOT NULL,   -- JSON list of flag codes
+    metrics         TEXT    NOT NULL,   -- JSON object of metric values
+    evaluated_at    TEXT    NOT NULL,
+    PRIMARY KEY (run_id, key)
+);
 """
 
 # Columns added after the first release; added to existing databases on connect.
@@ -382,3 +395,74 @@ def failure_details(
             " WHERE run_id = ? AND status = 'failed' ORDER BY updated_at DESC LIMIT ?",
             (run_id, limit),
         ).fetchall()
+
+
+# --- evaluations ----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class EvaluationRow:
+    key: str
+    status: str
+    reason: str | None
+    detail: str | None
+    issues: list[tuple[str, str]]
+    flags: list[str]
+    metrics: dict[str, float | None]
+
+
+def save_evaluations(run_id: int, rows: list[EvaluationRow], db_path: Path | None = None) -> None:
+    """Replace all evaluations of a run (evaluation can be repeated without refetching)."""
+    now = _now()
+    with connect(db_path) as conn:
+        conn.execute("DELETE FROM evaluations WHERE run_id = ?", (run_id,))
+        conn.executemany(
+            "INSERT INTO evaluations (run_id, key, status, reason, detail, issues, flags, metrics,"
+            " evaluated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (run_id, r.key, r.status, r.reason, r.detail, json.dumps(r.issues),
+                 json.dumps(r.flags), json.dumps(r.metrics), now)
+                for r in rows
+            ],
+        )
+
+
+def get_evaluations(run_id: int, db_path: Path | None = None) -> list[EvaluationRow]:
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT key, status, reason, detail, issues, flags, metrics FROM evaluations"
+            " WHERE run_id = ? ORDER BY key",
+            (run_id,),
+        ).fetchall()
+    return [
+        EvaluationRow(
+            key=r[0], status=r[1], reason=r[2], detail=r[3],
+            issues=[tuple(i) for i in json.loads(r[4])], flags=json.loads(r[5]),
+            metrics=json.loads(r[6]),
+        )
+        for r in rows
+    ]
+
+
+def raw_ids_for_run(run_id: int, db_path: Path | None = None) -> dict[tuple[str, str], int]:
+    """(key, dataset) -> raw_id for every successfully loaded item of a run."""
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT key, dataset, raw_id FROM run_items WHERE run_id = ? AND raw_id IS NOT NULL"
+            " AND status IN ('ok', 'cached')",
+            (run_id,),
+        ).fetchall()
+    return {(k, d): int(i) for k, d, i in rows}
+
+
+def load_raw_many(raw_ids: list[int], db_path: Path | None = None) -> dict[int, Any]:
+    result: dict[int, Any] = {}
+    with connect(db_path) as conn:
+        for start in range(0, len(raw_ids), 500):
+            chunk = raw_ids[start:start + 500]
+            marks = ",".join("?" * len(chunk))
+            for raw_id, payload in conn.execute(
+                f"SELECT id, payload FROM raw_data WHERE id IN ({marks})", chunk
+            ):
+                result[int(raw_id)] = decode_payload(payload)
+    return result

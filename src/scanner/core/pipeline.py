@@ -15,6 +15,8 @@ from typing import Any
 
 from scanner.config import ScannerConfig, load_exchanges
 from scanner.core import store
+from scanner.core.evaluation import EvaluationSummary, evaluate_run, needed_fx_pairs
+from scanner.core.metrics.inputs import fx_pair
 from scanner.core.sources.base import (
     DATASETS,
     STATEMENTS,
@@ -60,15 +62,6 @@ class Progress:
             return None
         elapsed = time.monotonic() - self.started
         return elapsed / self.done * (self.total - self.done)
-
-
-def fx_pair(currency: str) -> str | None:
-    """Yahoo FX ticker converting `currency` into EUR (pence and cents map to the main unit)."""
-    code = {"GBp": "GBP", "GBX": "GBP", "ZAc": "ZAR", "ILA": "ILS"}.get(currency, currency)
-    code = code.upper()
-    if not code or code == "EUR":
-        return None
-    return f"{code}EUR=X"
 
 
 def _max_age(config: ScannerConfig, dataset: str) -> timedelta:
@@ -186,6 +179,7 @@ class ScanRun:
                 self.progress.current = f"{ticker} – {entry.name}"
                 self._load_stock(run_id, ticker, completed)
                 self._tick(run_id)
+            self._load_financial_fx(run_id, included)
         except Cancelled:
             store.finish_run(run_id, "cancelled", start_list_size=len(entries),
                              note="Abgebrochen – kann fortgesetzt werden", db_path=self.db)
@@ -198,11 +192,43 @@ class ScanRun:
             return run_id
 
         loaded = self._count_complete(run_id, included)
+        note = f"{loaded} von {len(included)} Aktien vollständig geladen"
+        try:
+            summary = self._evaluate(run_id)
+            note += f", {summary.message}"
+        except Exception as exc:  # noqa: BLE001 – data stays usable; evaluation can be repeated
+            note += f" – Bewertung fehlgeschlagen: {type(exc).__name__}: {exc}"
         store.finish_run(run_id, "finished", start_list_size=len(entries), rated_count=loaded,
-                         note=f"{loaded} von {len(included)} Aktien vollständig geladen",
-                         db_path=self.db)
-        self._set_phase("Fertig", f"{loaded} von {len(included)} Aktien vollständig geladen")
+                         note=note, db_path=self.db)
+        self._set_phase("Fertig", note)
         return run_id
+
+    def _load_financial_fx(self, run_id: int, included: list[store.StartListEntry]) -> None:
+        """FX for reporting currencies that differ from the trading currency (e.g. a Hong Kong
+        listing reporting in CNY). Known only after the company data has been loaded."""
+        raw_ids = store.raw_ids_for_run(run_id, db_path=self.db)
+        info_ids = [raw_ids[(e.yahoo_ticker, "info")] for e in included
+                    if (e.yahoo_ticker, "info") in raw_ids]
+        infos = list(store.load_raw_many(info_ids, db_path=self.db).values())
+        pairs = sorted(needed_fx_pairs(infos, [e.currency for e in included])
+                       - {k for k, d in raw_ids if d == "fx"})
+        if not pairs:
+            return
+        self._set_phase("Devisenkurse (Bilanzwährungen)")
+        self.progress.total += len(pairs)
+        for pair in pairs:
+            self._load(run_id, pair, "fx", lambda p=pair: self.source.fx_history(
+                p, self.config.data_source.history_price_days))
+            self._tick(run_id)
+
+    def _evaluate(self, run_id: int) -> EvaluationSummary:
+        self._set_phase("Kennzahlen berechnen und prüfen")
+
+        def progress(done: int, total: int, current: str) -> None:
+            self.progress.current = current
+            self.progress.message = f"Bewertung {done + 1} von {total}"
+
+        return evaluate_run(run_id, self.config, db_path=self.db, on_progress=progress)
 
     def _tick(self, run_id: int) -> None:
         self.progress.done += 1
