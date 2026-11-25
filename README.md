@@ -42,6 +42,8 @@ Das Skript
   2. *Probe 500* – 100 je Region, ca. 45 Minuten
   3. *Vollständig* – alle Aktien der Startliste, mehrere Stunden (über Nacht)
 - **Abbrechen / Fortsetzen:** Ein abgebrochener oder wegen Abrufsperren gestoppter Lauf lässt sich in der Übersicht fortsetzen; bereits geladene Daten werden nicht erneut abgerufen. Das gilt auch, wenn das Programm während eines Laufs geschlossen wurde.
+- **Bewertung:** Am Ende jedes Laufs werden Kennzahlen berechnet und geprüft. Datenqualität → „Bewertung & Ausschlüsse“ zeigt je Region, wer bewertbar ist und warum andere herausfallen. Neu rechnen ohne Datenabruf: `~/aktien-scanner/.venv/bin/scanner evaluate`.
+- **Gegenprobe USA:** braucht in `~/aktien-scanner/.env` die Zeile `SEC_USER_AGENT="Vorname Nachname email@beispiel.de"`; dann Datenqualität → „Gegenprobe USA“ → „Gegenprobe starten“.
 - **Datenqualität:** zeigt je Region, wie viele Aktien vollständige Daten haben, und warum etwas fehlt (unbekannter Ticker, Börse ohne Zuordnung, keine Daten).
 
 ## Aufbau
@@ -50,7 +52,7 @@ Das Skript
 config/scanner.yaml   Regeln, Schwellen, Gewichte (einzige Stelle für Einstellungen)
 src/scanner/core/     Rechen-Engine – kennt die Oberfläche nicht
 src/scanner/ui/       Oberfläche (NiceGUI)
-src/scanner/cli.py    Hilfsbefehle (scanner check, scanner run --scope probe_100)
+src/scanner/cli.py    Hilfsbefehle: check, run, evaluate, crosscheck, export-db
 config/exchanges.yaml Börsenname → Yahoo-Tickerformat
 tests/                Unit-Tests
 install.sh            einmalige Einrichtung
