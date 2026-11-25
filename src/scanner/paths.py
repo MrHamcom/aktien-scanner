@@ -38,3 +38,19 @@ def resolve_project_path(path: str | Path) -> Path:
 def database_path() -> Path:
     """Path of the SQLite database."""
     return data_dir() / "scanner.sqlite3"
+
+
+def env_value(key: str) -> str | None:
+    """Setting from the environment or the project's .env file (environment wins).
+    Secrets live only in .env – never in the configuration or the repository."""
+    if os.environ.get(key):
+        return os.environ[key]
+    env_file = PROJECT_ROOT / ".env"
+    if not env_file.is_file():
+        return None
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        name, sep, value = line.strip().partition("=")
+        if sep and name.strip() == key and not line.lstrip().startswith("#"):
+            value = value.strip().strip('"').strip("'")
+            return value or None
+    return None

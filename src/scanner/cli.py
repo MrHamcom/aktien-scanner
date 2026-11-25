@@ -73,6 +73,32 @@ def _evaluate(run_id: int | None) -> int:
     return 0
 
 
+def _crosscheck(run_id: int | None, sample: int) -> int:
+    from scanner.core.crosscheck import run_crosscheck
+    from scanner.core.sources.edgar import EdgarClient
+    from scanner.paths import env_value
+
+    try:
+        client = EdgarClient(env_value("SEC_USER_AGENT") or "")
+    except ValueError as exc:
+        print(exc)
+        return 1
+    run = store.get_run(run_id) if run_id else store.latest_run()
+    if run is None:
+        print("Kein Lauf gefunden")
+        return 1
+    rows = run_crosscheck(run.id, client, sample,
+                          on_progress=lambda i, n, key: print(f"{i + 1}/{n} {key}"))
+    compared = [r for r in rows if r.status in ("ok", "deviation")]
+    ok = sum(r.status == "ok" for r in compared)
+    print(f"Lauf {run.id}: {ok} von {len(compared)} Werten innerhalb 2 %")
+    for r in rows:
+        if r.status == "deviation":
+            print(f"  {r.key:<8} {r.item:<22} Yahoo {r.yahoo:>18,.0f}  EDGAR {r.edgar:>18,.0f}"
+                  f"  {r.deviation:.1%}")
+    return 0
+
+
 def _windows_downloads() -> Path | None:
     """The Windows Downloads folder as seen from WSL, if exactly one user folder has one."""
     users = Path("/mnt/c/Users")
@@ -114,6 +140,9 @@ def main(argv: list[str] | None = None) -> None:
     run_parser.add_argument("--resume", type=int, help="Lauf-Nummer fortsetzen")
     eval_parser = sub.add_parser("evaluate", help="Kennzahlen eines Laufs neu berechnen")
     eval_parser.add_argument("run", nargs="?", type=int, help="Lauf-Nummer (Standard: letzter)")
+    cc_parser = sub.add_parser("crosscheck", help="Gegenprobe US-Werte mit SEC EDGAR")
+    cc_parser.add_argument("--run", type=int, help="Lauf-Nummer (Standard: letzter)")
+    cc_parser.add_argument("--sample", type=int, default=30, help="Anzahl US-Aktien")
     export_parser = sub.add_parser(
         "export-db", help="Kopie der Datenbank (Standard: Windows-Downloads-Ordner)"
     )
@@ -126,6 +155,8 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(_run(args.scope, args.resume))
     if args.command == "evaluate":
         sys.exit(_evaluate(args.run))
+    if args.command == "crosscheck":
+        sys.exit(_crosscheck(args.run, args.sample))
     if args.command == "export-db":
         sys.exit(_export_db(args.to))
     if args.command == "ui":

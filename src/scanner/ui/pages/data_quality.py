@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import threading
+
 from nicegui import ui
 
 from scanner.config import ScannerConfig
 from scanner.core import coverage, store
+from scanner.core.crosscheck import load as crosscheck_load
+from scanner.core.crosscheck import run_crosscheck
 from scanner.core.evaluation import ExclusionReport, exclusion_report
 from scanner.core.sources.base import STATEMENTS
+from scanner.core.sources.edgar import EdgarClient
 from scanner.core.universe import scope_labels
 from scanner.core.validate import RATED, STAGES
+from scanner.paths import env_value
 from scanner.ui import format as fmt
 from scanner.ui.layout import empty_state, page_title
 
@@ -131,6 +137,7 @@ def render(config: ScannerConfig, run_id: int | None = None) -> None:
                          ).classes("w-full") as tabs:
         tab_eval = ui.tab("Bewertung & Ausschlüsse", icon="filter_alt")
         tab_load = ui.tab("Datenabruf", icon="cloud_download")
+        tab_check = ui.tab("Gegenprobe USA", icon="compare_arrows")
     with ui.tab_panels(tabs, value=tab_eval if report else tab_load).props(
         "animated keep-alive"
     ).classes("w-full bg-transparent"):
@@ -138,6 +145,109 @@ def render(config: ScannerConfig, run_id: int | None = None) -> None:
             _evaluation_section(report)
         with ui.tab_panel(tab_load).classes("p-0 gap-4"):
             _loading_section(selected)
+        with ui.tab_panel(tab_check).classes("p-0 gap-4"):
+            _crosscheck_section(selected, report is not None)
+
+
+_CHECK_STATE: dict[str, object] = {"running": False, "text": "", "error": None}
+
+CHECK_STATUS = {
+    "ok": "innerhalb 2 %",
+    "deviation": "Abweichung",
+    "edgar_missing": "bei EDGAR nicht gefunden",
+    "yahoo_missing": "bei Yahoo nicht vorhanden",
+    "error": "Abruf fehlgeschlagen",
+}
+
+
+def _crosscheck_section(run_id: int, evaluated: bool) -> None:
+    user_agent = env_value("SEC_USER_AGENT")
+    with ui.card().classes("as-card w-full p-6 gap-2"):
+        ui.label("Gegenprobe mit der US-Börsenaufsicht (SEC EDGAR)").classes(
+            "text-lg font-medium")
+        ui.label(
+            "Vergleicht für 30 zufällig gewählte bewertbare US-Aktien Umsatz, Jahresüberschuss, "
+            "Bilanzsumme, Eigenkapital, operativen Cashflow, Investitionen und gezahlte "
+            "Dividenden mit den offiziellen Jahresberichten. Ziel: Abweichung höchstens 2 %."
+        ).classes("as-muted text-sm")
+        if not user_agent:
+            ui.label(
+                "Dafür fehlt noch die Kennung für die SEC: Trage in ~/aktien-scanner/.env die "
+                "Zeile SEC_USER_AGENT=\"Vorname Nachname deine@email.de\" ein und starte die "
+                "Oberfläche neu."
+            ).classes("text-sm text-warning")
+            return
+        if not evaluated:
+            ui.label("Erst nach der Bewertung des Laufs möglich.").classes("text-sm text-warning")
+            return
+        status = ui.label("").classes("text-sm as-muted")
+        button = ui.button("Gegenprobe starten", icon="play_arrow").props("unelevated no-caps")
+
+        def start() -> None:
+            if _CHECK_STATE["running"]:
+                return
+            _CHECK_STATE.update(running=True, text="Start …", error=None)
+
+            def work() -> None:
+                try:
+                    def progress(i: int, n: int, key: str) -> None:
+                        _CHECK_STATE["text"] = f"{i + 1} von {n}: {key}"
+
+                    run_crosscheck(run_id, EdgarClient(user_agent), on_progress=progress)
+                except Exception as exc:  # noqa: BLE001 – shown in the UI
+                    _CHECK_STATE["error"] = str(exc)
+                finally:
+                    _CHECK_STATE["running"] = False
+
+            threading.Thread(target=work, daemon=True).start()
+
+        button.on_click(start)
+
+        def refresh() -> None:
+            button.set_enabled(not _CHECK_STATE["running"])
+            if _CHECK_STATE["running"]:
+                status.text = f"läuft … {_CHECK_STATE['text']}"
+            elif _CHECK_STATE["error"]:
+                status.text = f"Fehler: {_CHECK_STATE['error']}"
+            if not _CHECK_STATE["running"] and status.text.startswith("läuft"):
+                ui.navigate.reload()
+
+        ui.timer(1.0, refresh)
+
+    rows = crosscheck_load(run_id)
+    if not rows:
+        return
+    compared = [r for r in rows if r.status in ("ok", "deviation")]
+    ok = sum(r.status == "ok" for r in compared)
+    with ui.card().classes("as-card w-full p-0"):
+        with ui.column().classes("px-6 pt-5 gap-1"):
+            ui.label(f"Ergebnis: {ok} von {len(compared)} Werten innerhalb 2 %").classes(
+                "text-lg font-medium")
+            ui.label("Werte in Millionen der Berichtswährung; Abweichungen zuerst.").classes(
+                "text-sm as-muted")
+        order = {"deviation": 0, "error": 1, "yahoo_missing": 2, "edgar_missing": 3, "ok": 4}
+        ui.table(
+            columns=[
+                {"name": "key", "label": "Ticker", "field": "key", "align": "left"},
+                {"name": "item", "label": "Wert", "field": "item", "align": "left"},
+                {"name": "period", "label": "Jahr", "field": "period", "align": "left"},
+                {"name": "yahoo", "label": "Yahoo", "field": "yahoo"},
+                {"name": "edgar", "label": "EDGAR", "field": "edgar"},
+                {"name": "deviation", "label": "Abweichung", "field": "deviation"},
+                {"name": "status", "label": "Status", "field": "status", "align": "left"},
+            ],
+            rows=[
+                {"id": f"{r.key}:{r.item}", "key": r.key, "item": r.item,
+                 "period": (r.period or "")[:4],
+                 "yahoo": "–" if r.yahoo is None else fmt.number(r.yahoo / 1e6),
+                 "edgar": "–" if r.edgar is None else fmt.number(r.edgar / 1e6),
+                 "deviation": "–" if r.deviation is None else f"{r.deviation:.1%}",
+                 "status": CHECK_STATUS.get(r.status, r.status)}
+                for r in sorted(rows, key=lambda r: (order.get(r.status, 9), r.key))
+            ],
+            row_key="id",
+            pagination=25,
+        ).props("flat dense separator=horizontal").classes("w-full px-4 pb-4")
 
 
 def _evaluation_section(report: ExclusionReport | None) -> None:
