@@ -87,6 +87,8 @@ data_source:
   max_requests_per_minute: 60      # tuned during ramp-up in Subphase B
   max_retries: 4                   # per request, waiting retry_base_seconds * 2^n
   retry_base_seconds: 30
+  transient_retries: 2             # connection problems: fewer and shorter retries (5 s, 10 s)
+  transient_retry_base_seconds: 5
   abort_after_consecutive_rate_limits: 5   # then the run stops and can be resumed later
   history_price_days: 400          # stored daily prices; dividends/splits are kept in full
   refresh:                         # cached data younger than this is reused

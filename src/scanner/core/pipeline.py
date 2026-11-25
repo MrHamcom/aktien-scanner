@@ -111,6 +111,8 @@ class ScanRun:
             RateLimiter(ds.max_requests_per_minute),
             max_retries=ds.max_retries,
             retry_base_seconds=ds.retry_base_seconds,
+            transient_retries=ds.transient_retries,
+            transient_retry_base_seconds=ds.transient_retry_base_seconds,
             cancel=self.cancel,
             on_wait=self._on_wait,
             **fetcher_kwargs,

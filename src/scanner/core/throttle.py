@@ -58,10 +58,19 @@ class Fetcher:
         cancel: threading.Event | None = None,
         on_wait: Callable[[str], None] | None = None,
         sleep: Callable[[float, threading.Event | None], None] = interruptible_sleep,
+        transient_retries: int | None = None,
+        transient_retry_base_seconds: float | None = None,
     ) -> None:
         self.limiter = limiter
         self.max_retries = max_retries
         self.retry_base_seconds = retry_base_seconds
+        # Connection problems of a single ticker rarely heal within minutes: retry fewer, shorter.
+        self.transient_retries = max_retries if transient_retries is None else transient_retries
+        self.transient_retry_base_seconds = (
+            retry_base_seconds
+            if transient_retry_base_seconds is None
+            else transient_retry_base_seconds
+        )
         self.cancel = cancel
         self.on_wait = on_wait or (lambda _msg: None)
         self.sleep = sleep
@@ -80,10 +89,13 @@ class Fetcher:
             except NoData:
                 raise
             except (RateLimited, TransientError) as exc:
-                if attempt >= self.max_retries:
+                limited = isinstance(exc, RateLimited)
+                retries = self.max_retries if limited else self.transient_retries
+                base = self.retry_base_seconds if limited else self.transient_retry_base_seconds
+                if attempt >= retries:
                     raise
-                wait = self.retry_base_seconds * (2**attempt)
-                kind = "Abrufsperre" if isinstance(exc, RateLimited) else "Verbindungsproblem"
+                wait = base * (2**attempt)
+                kind = "Abrufsperre" if limited else "Verbindungsproblem"
                 self.on_wait(f"{kind} – neuer Versuch in {wait:.0f} s")
                 self.sleep(wait, self.cancel)
                 attempt += 1

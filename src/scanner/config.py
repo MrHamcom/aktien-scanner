@@ -101,6 +101,8 @@ class DataSource(_Strict):
     max_requests_per_minute: int = Field(ge=1)
     max_retries: int = Field(ge=0)
     retry_base_seconds: float = Field(ge=0)
+    transient_retries: int = Field(default=2, ge=0)
+    transient_retry_base_seconds: float = Field(default=5, ge=0)
     abort_after_consecutive_rate_limits: int = Field(ge=1)
     history_price_days: int = Field(ge=260)
     refresh: Refresh

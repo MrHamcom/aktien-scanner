@@ -42,7 +42,7 @@ def _fetcher(retries: int = 3, cancel: threading.Event | None = None):
 
 def test_retries_rate_limit_with_backoff() -> None:
     fetcher, waits = _fetcher()
-    outcomes = iter([RateLimited("429"), TransientError("timeout"), "ok"])
+    outcomes = iter([RateLimited("429"), RateLimited("429"), "ok"])
 
     def fn():
         result = next(outcomes)
@@ -83,3 +83,21 @@ def test_cancel_stops_before_request() -> None:
     fetcher, _ = _fetcher(cancel=cancel)
     with pytest.raises(Cancelled):
         fetcher.call(lambda: "never")
+
+
+def test_transient_errors_use_shorter_retries() -> None:
+    clock = FakeClock()
+    waits: list[float] = []
+    fetcher = Fetcher(
+        RateLimiter(6000, clock=clock, sleep=clock.sleep),
+        max_retries=4, retry_base_seconds=30, sleep=lambda s, _c: waits.append(s),
+        transient_retries=2, transient_retry_base_seconds=5,
+    )
+
+    def fn():
+        raise TransientError("connection reset")
+
+    with pytest.raises(TransientError):
+        fetcher.call(fn)
+    assert waits == [5, 10]
+    assert fetcher.requests == 3
