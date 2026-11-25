@@ -55,7 +55,7 @@ def compute(run_id: int, db_path: Path | None = None) -> Coverage:
                 fx_failed.append(key)
             label = f"{dataset}: {reason}"
             reasons[label] += 1
-            if len(examples[label]) < 5:
+            if len(examples[label]) < 200:
                 examples[label].append(key)
 
     by_region: dict[str, RegionCoverage] = {}

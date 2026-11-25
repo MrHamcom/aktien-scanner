@@ -65,9 +65,9 @@ exchanges:
   "Gretai Securities Market": {suffix: ".TWO"}
   "Shanghai Stock Exchange": {suffix: ".SS", zero_pad: 6}
   "Shenzhen Stock Exchange": {suffix: ".SZ", zero_pad: 6}
-  "National Stock Exchange Of India": {suffix: ".NS"}
-  "Bombay Stock Exchange": {suffix: ".BO"}
-  "Bse Ltd": {suffix: ".BO"}
+  "National Stock Exchange Of India": {suffix: ".NS", separator: "-"}
+  "Bombay Stock Exchange": {suffix: ".BO", separator: "-"}
+  "Bse Ltd": {suffix: ".BO", separator: "-"}
   "XBSP": {suffix: ".SA"}
   "Bolsa De Valores De Sao Paulo": {suffix: ".SA"}
   "Bolsa Mexicana De Valores": {suffix: ".MX"}
@@ -80,7 +80,7 @@ exchanges:
   "Bursa Malaysia": {suffix: ".KL"}
   "Philippine Stock Exchange Inc.": {suffix: ".PS"}
   "Warsaw Stock Exchange/Equities/Main Market": {suffix: ".WA"}
-  "Istanbul Stock Exchange": {suffix: ".IS"}
+  "Istanbul Stock Exchange": {suffix: ".IS", strip_suffixes: [".E"]}
   "Santiago Stock Exchange": {suffix: ".SN"}
   "Athens Exchange": {suffix: ".AT"}
   "Athens Exchange S.A. Cash Market": {suffix: ".AT"}

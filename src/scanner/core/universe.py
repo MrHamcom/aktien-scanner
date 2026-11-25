@@ -41,6 +41,7 @@ class Holding:
     country: str
     exchange: str
     currency: str
+    market_value: float | None = None  # None if the file has no "Market Value" column
 
 
 # --- loading ----------------------------------------------------------------------------------
@@ -122,6 +123,7 @@ def parse_ishares_csv(text: str) -> list[Holding]:
                 country=row[col["Location"]].strip(),
                 exchange=row[col["Exchange"]].strip(),
                 currency=row[col["Currency"]].strip() if "Currency" in col else "",
+                market_value=_number(row[col["Market Value"]]) if "Market Value" in col else None,
             )
         )
     if not holdings:
@@ -172,8 +174,10 @@ def build_start_list(
         if h.asset_class.casefold() != "equity":
             continue
         not_tradable = "unlisted" if exchanges.is_unlisted(h.exchange) else None
-        if not_tradable is None and h.weight <= 0:
-            not_tradable = "zero_weight"  # held at zero value, e.g. suspended Russian GDRs
+        # Held at zero value, e.g. suspended Russian GDRs. The weight column is rounded to two
+        # decimals (many small positions show 0.00), so only the market value is a safe signal.
+        if not_tradable is None and h.market_value is not None and h.market_value <= 0:
+            not_tradable = "zero_value"
         if not_tradable:
             entries.append(
                 StartListEntry(

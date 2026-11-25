@@ -142,11 +142,21 @@ def render(config: ScannerConfig, run_id: int | None = None) -> None:
                 ],
                 rows=[
                     {"reason": _reason_text(label), "count": fmt.number(count),
-                     "examples": ", ".join(examples)}
+                     "examples": ", ".join(examples[:5]) + (" …" if len(examples) > 5 else "")}
                     for label, count, examples in cov.failure_reasons
                 ],
                 row_key="reason",
             ).props("flat dense separator=horizontal").classes("w-full px-4 pb-4")
+            with ui.expansion("Alle betroffenen Ticker (zum Kopieren)", icon="list").classes(
+                "w-full px-4 pb-2"
+            ):
+                text = "\n".join(
+                    f"{_reason_text(label)}: {', '.join(examples)}"
+                    for label, _count, examples in cov.failure_reasons
+                )
+                ui.textarea(value=text).props("readonly outlined autogrow").classes(
+                    "w-full font-mono text-xs"
+                )
 
     if cov.unmapped_exchanges:
         with ui.card().classes("as-card w-full p-6 gap-2"):

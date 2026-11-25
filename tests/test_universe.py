@@ -21,6 +21,7 @@ def test_parse_skips_metadata_and_footer(sample_csv: str) -> None:
     assert holdings[0].ticker == "NVDA"
     assert holdings[0].weight == pytest.approx(4.68)
     assert holdings[-1].ticker == "USD"  # cash row is parsed, filtered later
+    assert holdings[0].market_value == pytest.approx(1_523_000_000.0)
     assert len(holdings) == 15
 
 
@@ -58,6 +59,8 @@ def test_download_url_points_to_csv(config) -> None:
         ("ETE", "Athens Exchange S.A. Cash Market", "Greece", "ETE.AT"),
         ("EMAAR", "Dubai Financial Market", "United Arab Emirates", "EMAAR.AE"),
         ("RELIANCE", "Bse Ltd", "India", "RELIANCE.BO"),
+        ("BAJAJ.AUTO", "National Stock Exchange Of India", "India", "BAJAJ-AUTO.NS"),
+        ("ASELS.E", "Istanbul Stock Exchange", "Turkey", "ASELS.IS"),
     ],
 )
 def test_yahoo_ticker_mapping(config, ticker, exchange, country, expected) -> None:
@@ -130,11 +133,19 @@ def test_cboe_bzx_is_us(config) -> None:
     assert yahoo == "CBOE"
 
 
-def test_zero_weight_holding_is_excluded(config) -> None:
+def test_zero_value_holding_is_excluded(config) -> None:
     holding = Holding("PHOR", "PHOSAGRO GDR", "Materials", "Equity", 0.0, "Russian Federation",
-                      "London Stock Exchange", "USD")
+                      "London Stock Exchange", "USD", market_value=0.0)
     entries = build_start_list([holding], config, load_exchanges(config))
-    assert entries[0].status == "excluded" and entries[0].reason == "zero_weight"
+    assert entries[0].status == "excluded" and entries[0].reason == "zero_value"
+
+
+def test_small_weight_rounded_to_zero_is_kept(config) -> None:
+    # iShares rounds weights to two decimals: tiny positions show 0.00 but have a market value
+    holding = Holding("7974", "NINTENDO", "Communication", "Equity", 0.0, "Japan",
+                      "Tokyo Stock Exchange", "JPY", market_value=12_000_000.0)
+    entries = build_start_list([holding], config, load_exchanges(config))
+    assert entries[0].status == "included"
 
 
 def test_abu_dhabi_stays_unmapped(config) -> None:
