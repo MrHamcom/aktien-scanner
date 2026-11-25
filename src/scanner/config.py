@@ -161,6 +161,7 @@ class ExchangeRule(_Strict):
     zero_pad: int | None = Field(default=None, ge=1)
     separator: str | None = None
     strip_suffixes: list[str] = Field(default_factory=list)
+    ticker_map: dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _suffix_or_country(self) -> ExchangeRule:

@@ -148,6 +148,9 @@ def to_yahoo_ticker(holding: Holding, exchanges: ExchangesConfig) -> tuple[str |
     else:
         suffix = rule.suffix or ""
 
+    mapped = rule.ticker_map.get(holding.ticker.strip())
+    if mapped is not None:
+        return f"{mapped}{suffix}", None
     symbol = holding.ticker.strip().replace("*", "")  # Mexico: series marker "WALMEX*"
     for ending in rule.strip_suffixes:
         if symbol.endswith(ending) and len(symbol) > len(ending):

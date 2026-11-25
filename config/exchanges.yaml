@@ -6,6 +6,7 @@
 # zero_pad:          left-pad numeric tickers with zeros to this length (e.g. Hong Kong 700 -> 0700)
 # separator:         replacement for "/" and "." inside the ticker (US: BRK.B -> BRK-B)
 # by_country:        suffix depending on the "Location" column (for shared exchange names)
+# ticker_map:        exchange-specific ticker -> Yahoo symbol (without suffix)
 # strip_suffixes:    endings removed from the ticker (Thailand NVDR "ADVANC-R" -> ordinary share)
 
 # Holdings without a stock exchange listing (e.g. suspended or delisted securities).
@@ -77,11 +78,29 @@ exchanges:
   "Kuwait Stock Exchange": {suffix: ".KW"}
   "Indonesia Stock Exchange": {suffix: ".JK"}
   "Stock Exchange Of Thailand": {suffix: ".BK", strip_suffixes: ["-R", ".R"]}
-  "Bursa Malaysia": {suffix: ".KL"}
+  # Yahoo lists Malaysian shares by stock code, iShares by short name -> explicit table.
+  # Codes checked against Yahoo's KLSE component list on 25.11.2026.
+  "Bursa Malaysia":
+    suffix: ".KL"
+    ticker_map:
+      CDB: "6947"      # CelcomDigi
+      GAMUDA: "5398"
+      IHH: "5225"      # IHH Healthcare
+      KLK: "2445"      # Kuala Lumpur Kepong
+      MAXIS: "6012"
+      MISC: "3816"
+      PCHEM: "5183"    # PETRONAS Chemicals
+      PETGAS: "6033"   # PETRONAS Gas
+      PMETAL: "8869"   # Press Metal
+      SDG: "5285"      # SD Guthrie
+      SWB: "5211"      # Sunway
+      TENAGA: "5347"   # Tenaga Nasional
+      TM: "4863"       # Telekom Malaysia
+      YTLPOWR: "6742"  # YTL Power
   "Philippine Stock Exchange Inc.": {suffix: ".PS"}
   "Warsaw Stock Exchange/Equities/Main Market": {suffix: ".WA"}
   "Istanbul Stock Exchange": {suffix: ".IS", strip_suffixes: [".E"]}
-  "Santiago Stock Exchange": {suffix: ".SN"}
+  "Santiago Stock Exchange": {suffix: ".SN", separator: "-"}
   "Athens Exchange": {suffix: ".AT"}
   "Athens Exchange S.A. Cash Market": {suffix: ".AT"}
   "Dubai Financial Market": {suffix: ".AE"}

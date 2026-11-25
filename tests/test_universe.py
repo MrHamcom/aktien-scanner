@@ -61,6 +61,10 @@ def test_download_url_points_to_csv(config) -> None:
         ("RELIANCE", "Bse Ltd", "India", "RELIANCE.BO"),
         ("BAJAJ.AUTO", "National Stock Exchange Of India", "India", "BAJAJ-AUTO.NS"),
         ("ASELS.E", "Istanbul Stock Exchange", "Turkey", "ASELS.IS"),
+        ("TENAGA", "Bursa Malaysia", "Malaysia", "5347.KL"),
+        ("TM", "Bursa Malaysia", "Malaysia", "4863.KL"),
+        ("TM", "New York Stock Exchange Inc.", "United States", "TM"),  # map is per exchange
+        ("SQM.B", "Santiago Stock Exchange", "Chile", "SQM-B.SN"),
     ],
 )
 def test_yahoo_ticker_mapping(config, ticker, exchange, country, expected) -> None:
