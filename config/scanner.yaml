@@ -42,10 +42,11 @@ value_trap_filters:
   negative_fcf_years_of_last_3: 2
   min_altman_z: 1.8
   max_share_dilution_12m: 0.10
-  # exclude = removed before the ranking (concept, section 6); flag = warning only.
-  # Open decision after Subphase C: the filters hit utilities very hard (see Konzeptplan).
-  negative_fcf_action: exclude
-  altman_action: exclude
+  # exclude = removed before the ranking; flag = warning shown in the ranking.
+  # Decision 25.11.2026 (option C): negative FCF and Altman Z only as warnings – as exclusions
+  # they removed whole sectors (81 of 101 utilities in run 9). Dilution stays an exclusion.
+  negative_fcf_action: flag
+  altman_action: flag
   dilution_action: exclude
 
 ranking:

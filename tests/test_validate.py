@@ -49,9 +49,15 @@ def test_liquidity_threshold(config) -> None:
     assert ev.detail == "2.0 Mio. € pro Tag"
 
 
+def _excluding(config):
+    traps = config.value_trap_filters.model_copy(
+        update={"negative_fcf_action": "exclude", "altman_action": "exclude"})
+    return config.model_copy(update={"value_trap_filters": traps})
+
+
 def test_negative_fcf_in_two_of_three_years(config) -> None:
     cf = company_cashflow(**{"Operating Cash Flow": [180 * M, 20 * M, 10 * M]})
-    ev = evaluate(company(cashflow=cf), config)
+    ev = evaluate(company(cashflow=cf), _excluding(config))
     assert (ev.status, ev.reason) == ("value_trap", "negative_fcf")
 
 
@@ -59,8 +65,10 @@ def test_low_altman_z(config) -> None:
     # heavy liabilities and losses push Z below 1.8
     bal = company_balance(**{"Total Liabilities Net Minority Interest": [9000 * M, 650 * M],
                              "Retained Earnings": [-800 * M, 350 * M]})
-    ev = evaluate(company(balance=bal), config)
+    ev = evaluate(company(balance=bal), _excluding(config))
     assert (ev.status, ev.reason) == ("value_trap", "altman_z_low")
+    flagged = evaluate(company(balance=bal), config)  # decision C: warning only
+    assert flagged.rated and "altman_z_low" in flagged.flags
 
 
 def test_dilution_filter(config) -> None:

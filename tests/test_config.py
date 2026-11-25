@@ -83,3 +83,10 @@ def test_region_lookup() -> None:
     assert config.region_of("Germany") == "Europe"
     assert config.region_of("United States") == "North America"
     assert config.region_of("Atlantis") is None
+
+
+def test_value_trap_decision_c(config) -> None:
+    # decision 25.11.2026: negative FCF and Altman Z are warnings, dilution excludes
+    traps = config.value_trap_filters
+    assert (traps.negative_fcf_action, traps.altman_action, traps.dilution_action) == (
+        "flag", "flag", "exclude")
