@@ -265,3 +265,11 @@ def test_implausible_yield_is_an_issue(config) -> None:
 def test_cut_day_in_middle_of_largest_gap() -> None:
     may = [(date(2021, 5, 10), 1.0)]  # day 130
     assert dividend.cut_day_of_year(may) == (130 + 182) % 365
+
+
+def test_statement_accepts_camel_case_rows() -> None:
+    # yfinance get_balance_sheet() returns "CashAndCashEquivalents", not "Cash And ..."
+    st = Statement({"periods": ["2025-12-31"], "items": ["CashAndCashEquivalents", "EBIT"],
+                    "values": [[5.0], [7.0]]})
+    assert st.value(("Cash And Cash Equivalents",)) == 5.0
+    assert st.value("EBIT") == 7.0

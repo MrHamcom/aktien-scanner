@@ -7,6 +7,7 @@ to EUR so that ratios never mix currencies.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
@@ -38,6 +39,12 @@ def fx_pair(currency: str | None) -> str | None:
     return f"{code}EUR=X"
 
 
+def _item_key(name: str) -> str:
+    """Row names come as "Cash And Cash Equivalents" or "CashAndCashEquivalents" depending on
+    the yfinance call; compare them without spaces and case."""
+    return re.sub(r"[^a-z0-9]", "", name.casefold())
+
+
 class Statement:
     """Annual statement as stored by the Yahoo adapter: items x periods, newest period first."""
 
@@ -45,7 +52,7 @@ class Statement:
         payload = payload or {}
         self.periods: list[str] = list(payload.get("periods") or [])
         self._rows: dict[str, list[float | None]] = {
-            str(item): list(values)
+            _item_key(str(item)): list(values)
             for item, values in zip(payload.get("items") or [], payload.get("values") or [],
                                     strict=False)
         }
@@ -60,13 +67,13 @@ class Statement:
         return bool(self.periods)
 
     def has(self, *items: str) -> bool:
-        return any(i in self._rows for i in items)
+        return any(_item_key(i) in self._rows for i in items)
 
     def value(self, items: tuple[str, ...] | str, year: int = 0) -> float | None:
         """First available value among synonyms `items` for period index `year` (0 = latest)."""
         names = (items,) if isinstance(items, str) else items
         for name in names:
-            row = self._rows.get(name)
+            row = self._rows.get(_item_key(name))
             if row is not None and year < len(row) and year < len(self.periods):
                 v = row[year]
                 if v is not None:
