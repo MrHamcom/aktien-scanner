@@ -60,8 +60,14 @@ def render(config: ScannerConfig, jobs: JobManager) -> None:
                 _kpi("task_alt", "Vollständig geladen", "–", "Aktien mit allen Datensätzen")
             else:
                 scope = labels.get(run.scope or "", run.scope or "")
+                details = [STATUS_LABELS.get(run.status, run.status), scope]
+                if run.finished_at and run.started_at:
+                    seconds = (run.finished_at - run.started_at).total_seconds()
+                    details.append(f"Dauer {fmt.duration(seconds)}".replace(" ", "\u00a0"))
+                if run.requests is not None:
+                    details.append(f"{fmt.number(run.requests)} Abrufe")
                 _kpi("history", "Letzter Lauf", fmt.timestamp(run.started_at),
-                     f"{STATUS_LABELS.get(run.status, run.status)} · {scope}")
+                     " · ".join(d for d in details if d))
                 queried = sum(1 for e in store.get_start_list(run.id) if e.status == "included")
                 _kpi("task_alt", "Vollständig geladen", fmt.number(run.rated_count),
                      f"von {fmt.number(queried)} abgefragten Aktien" if queried
