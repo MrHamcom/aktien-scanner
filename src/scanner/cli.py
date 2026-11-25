@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sqlite3
 import sys
 import time
@@ -105,11 +106,15 @@ def _windows_downloads() -> Path | None:
     if not users.is_dir():
         return None
     skip = {"public", "default", "default user", "all users"}
-    candidates = [
-        d / "Downloads"
-        for d in users.iterdir()
-        if d.name.casefold() not in skip and (d / "Downloads").is_dir()
-    ]
+    candidates = []
+    for d in users.iterdir():
+        if d.name.casefold() in skip:
+            continue
+        try:
+            if (d / "Downloads").is_dir() and os.access(d / "Downloads", os.W_OK):
+                candidates.append(d / "Downloads")
+        except OSError:  # other Windows accounts are not readable – skip them
+            continue
     return candidates[0] if len(candidates) == 1 else None
 
 
